@@ -50,7 +50,7 @@ impl RussetPersistanceLayer for SqlDatabase {
 		Ok(())
 	}
 
-	fn get_feeds(&self) -> Vec<Result<Feed>> {
+	fn get_feeds(&self) -> impl IntoIterator<Item = Result<Feed>> {
 		// TODO: Maybe do paging later. Or figure out how to stream from sqlx.
 		let rows = self.async_util.run_blocking(|| async {
 			sqlx::query!("
@@ -61,7 +61,7 @@ impl RussetPersistanceLayer for SqlDatabase {
 				.fetch_all(&self.pool)
 				.await
 		} );
-		match rows {
+		let rv: Vec<Result<Feed>> = match rows {
 			Ok(rows) => {
 				rows.into_iter().map(|row| {
 					let id = Ulid::from_string(&row.id)?;
@@ -75,7 +75,8 @@ impl RussetPersistanceLayer for SqlDatabase {
 					.collect()
 			},
 			Err(e) => vec![Err(Box::new(e))],
-		}
+		};
+		rv
 	}
 
 	fn get_feed(&self, id: &Ulid) -> Result<Feed> {
@@ -141,7 +142,7 @@ impl RussetPersistanceLayer for SqlDatabase {
 		} )
 	}
 
-	fn get_entries_for_feed(&self, feed_id: &Ulid) -> Vec<Result<Entry>> {
+	fn get_entries_for_feed(&self, feed_id: &Ulid) -> impl IntoIterator<Item = Result<Entry>> {
 		let feed_id = feed_id.to_string();
 		// TODO: Maybe do paging later. Or figure out how to stream from sqlx.
 		let rows = self.async_util.run_blocking(|| async {
@@ -155,7 +156,7 @@ impl RussetPersistanceLayer for SqlDatabase {
 				.fetch_all(&self.pool)
 				.await
 		} );
-		match rows {
+		let rv: Vec<Result<Entry>> = match rows {
 			Ok(rows) => {
 				rows.into_iter().map(|row| {
 					let id = Ulid::from_string(&row.id)?;
@@ -173,7 +174,8 @@ impl RussetPersistanceLayer for SqlDatabase {
 					.collect()
 			},
 			Err(e) => vec![Err(Box::new(e))],
-		}
+		};
+		rv
 	}
 
 	fn get_and_increment_fetch_index(&mut self) -> Result<u32> {
