@@ -1,18 +1,29 @@
 use atom_syndication::Feed as AtomFeed;
+use crate::async_util::AsyncUtil;
 use crate::feed::model::Entry;
 use crate::feed::model::Feed;
 use crate::feed::RussetFeedReader;
 use crate::Result;
 use reqwest::Url;
+use std::sync::Arc;
 use std::time::SystemTime;
 
-pub struct AtomFeedReader { }
+pub struct AtomFeedReader {
+	async_util: Arc<AsyncUtil>,
+}
+impl AtomFeedReader {
+	pub fn new(async_util: Arc<AsyncUtil>) -> AtomFeedReader {
+		AtomFeedReader{ async_util }
+	}
+}
 impl RussetFeedReader for AtomFeedReader {
-	async fn load_feed(&self, url: &Url) -> Result<Feed> {
-		let content = reqwest::get(url.clone())
-			.await?
-			.bytes()
-			.await?;
+	fn load_feed(&self, url: &Url) -> Result<Feed> {
+		let content = self.async_util.run_blocking(|| async {
+			reqwest::get(url.clone())
+				.await?
+				.bytes()
+				.await
+		} )?;
 		let atom = AtomFeed::read_from(&content[..])?;
 		let title = atom.title.value;
 		let entries = atom.entries.into_iter().map(|entry| {

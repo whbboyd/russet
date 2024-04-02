@@ -27,55 +27,51 @@ pub type Err = Box<dyn Error>;
 pub type Result<T> = std::result::Result<T, Err>;
 
 fn main() -> Result<()> {
+	println!("================================================================================");
 	let async_util = Arc::new(AsyncUtil::new());
 	let mut db = SqlDatabase::new(Path::new(DB_FILE), async_util.clone())?;
 	let url = Url::parse(FEED_URL).unwrap();
-	let reader = AtomFeedReader { };
-/*
-	let (feed, entries) = update(&url, &reader, &mut db).await?;
-	println!("{:?}", feed);
-	for entry in entries {
-		println!("\t{:?}", entry);
+	let reader = AtomFeedReader::new(async_util.clone());
+	let reader_feed = reader.load_feed(&url)?;
+	let storage_feed = db.get_feed_by_url(&url).or_else(|_| {
+		let feed = persistence::model::Feed {
+			id: Ulid::new(),
+			title: reader_feed.title,
+			url: url.clone(),
+		};
+		db.add_feed(&feed)?;
+		Ok::<persistence::model::Feed, Err>(feed)
+	} )?;
+	println!("Updating \"{}\" ({})…", storage_feed.title, storage_feed.id.to_string());
+	let fetch_index = db.get_and_increment_fetch_index()?;
+	let storage_entries = db.get_entries_for_feed(&storage_feed.id).into_iter().collect::<Vec<Result<persistence::model::Entry>>>();
+	// TODO: Make this not quadratic
+	let new_entries = reader_feed.entries.into_iter()
+		.filter(|entry| {
+			for s in storage_entries.as_slice() {
+				if s.as_ref().map(|e| e.internal_id == entry.internal_id).unwrap_or(false) {
+					return false
+				}
+			};
+			true
+		} )
+		.map(|entry| {
+			persistence::model::Entry {
+				id: Ulid::new(),
+				internal_id: entry.internal_id,
+				fetch_index,
+				article_date: entry.article_date,
+				title: entry.title,
+				url: entry.url,
+			}
+		} )
+		.collect::<Vec<persistence::model::Entry>>();
+	println!("{} new entries", new_entries.len());
+	for e in new_entries.as_slice() {
+		println!("\t{} ({})", e.title, e.id.to_string());
+		db.add_entry(e, &storage_feed.id)?;
 	}
 	println!("================================================================================");
-	db.get_feeds().await.for_each(|feed| {
-		println!("{:?}", feed);
-		futures::future::ready(())
-	} ).await;
-*/
 	Ok(())
 }
 
-/*
-async fn update<F, P>(url: &Url, reader: &F, db: &mut P) -> Result<(persistence::model::Feed, Vec<persistence::model::Entry>)>
-where F: RussetFeedReader, P: RussetPersistanceLayer {
-	let fetch_index = db.get_and_increment_fetch_index().await?;
-	let stored_feed_future = db.get_feed_by_url(url);
-	let download_feed_future = reader.load_feed(url);
-	let download_feed = download_feed_future.await?;
-	let stored_feed = match stored_feed_future.await {
-		Ok(feed) => feed,
-		Err(_) => {
-			let feed = persistence::model::Feed {
-				id: Ulid::new(),
-				title: download_feed.title.clone(),
-				url: url.clone(),
-			};
-			db.add_feed(&feed).await?;
-			feed
-		}
-	};
-	let stored_entries = download_feed.entries.into_iter().map(|entry| {
-		persistence::model::Entry {
-			id: Ulid::new(),
-			internal_id: entry.internal_id,
-			fetch_index,
-			article_date: entry.article_date,
-			title: entry.title,
-			url: entry.url,
-		}
-	} ).collect();
-
-	Ok((stored_feed, stored_entries))
-}
-*/

@@ -116,6 +116,30 @@ impl RussetPersistanceLayer for SqlDatabase {
 		Ok(Feed { id, url, title })
 	}
 
+	fn add_entry(&mut self, entry: &Entry, feed_id: &Ulid) -> Result<()> {
+		let entry_id = entry.id.to_string();
+		let feed_id = feed_id.to_string();
+		let article_date: i64 = entry.article_date.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis().try_into().unwrap();
+		let entry_url = entry.url.clone().map(|url| url.to_string());
+		self.async_util.run_blocking(|| async {
+			sqlx::query!("
+					INSERT INTO entries (
+						id, feed_id, internal_id, fetch_index, article_date, title, url
+					) VALUES ( ?, ?, ?, ?, ?, ?, ? )",
+					entry_id,
+					feed_id,
+					entry.internal_id,
+					entry.fetch_index,
+					article_date,
+					entry.title,
+					entry_url,
+				)
+				.execute(&self.pool)
+				.await
+		} )?;
+		Ok(())
+	}
+
 	fn get_entry(&self, id: &Ulid) -> Result<Entry> {
 		let entry_id = id.to_string();
 		let row = self.async_util.run_blocking(|| async {
