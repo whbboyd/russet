@@ -1,0 +1,15 @@
+[package]
+name = "russet"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+atom_syndication = "0.12"
+chrono = "0.4"
+reqwest = "0.11"
+rss = "2.0"
+sqlx = { version = "0.7", features = ["sqlite", "migrate", "runtime-tokio-native-tls"] }
+tokio = { version = "1.36", features = ["full"] }
+tokio-stream = "0.1"
+tracing = { version = "0.1", features = ["log"] }
+ulid = "1.1"
