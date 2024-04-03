@@ -98,9 +98,9 @@ impl RussetPersistanceLayer for SqlDatabase {
 		Ok(Feed { id, url, title })
 	}
 
-	fn get_feed_by_url(&self, url: &Url) -> Result<Feed> {
+	fn get_feed_by_url(&self, url: &Url) -> Result<Option<Feed>> {
 		let feed_url = url.to_string();
-		let row = self.async_util.run_blocking(|| async {
+		let row_result = self.async_util.run_blocking(|| async {
 			sqlx::query!("
 					SELECT
 						id, url, title
@@ -109,11 +109,17 @@ impl RussetPersistanceLayer for SqlDatabase {
 					feed_url)
 				.fetch_one(&self.pool)
 				.await
-		} )?;
-		let id = Ulid::from_string(&row.id)?;
-		let url = Url::parse(&row.url)?;
-		let title = row.title;
-		Ok(Feed { id, url, title })
+		} );
+		match row_result {
+			Ok(row) => {
+				let id = Ulid::from_string(&row.id)?;
+				let url = Url::parse(&row.url)?;
+				let title = row.title;
+				Ok(Some(Feed { id, url, title }))
+			},
+			Err(sqlx::Error::RowNotFound) => Ok(None),
+			Err(e) => Err(Box::new(e)),
+		}
 	}
 
 	fn add_entry(&mut self, entry: &Entry, feed_id: &Ulid) -> Result<()> {
@@ -212,6 +218,7 @@ impl RussetPersistanceLayer for SqlDatabase {
 				.fetch_one(&self.pool)
 				.await
 		} )?;
-		Ok(row.fetch_index.try_into().unwrap())
+		let index = (row.fetch_index - 1).try_into()?;
+		Ok(index)
 	}
 }

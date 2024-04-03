@@ -18,7 +18,7 @@ pub trait RussetPersistanceLayer {
 	fn get_feed(&self, id: &Ulid) -> Result<Feed>;
 
 	/// Get a specified [Feed] by URL
-	fn get_feed_by_url(&self, url: &Url) -> Result<Feed>;
+	fn get_feed_by_url(&self, url: &Url) -> Result<Option<Feed>>;
 
 	/// Add the given [Entry] to this persistence layer
 	fn add_entry(&mut self, entry: &Entry, feed_id: &Ulid) -> Result<()>;
