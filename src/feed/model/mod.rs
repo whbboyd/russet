@@ -4,7 +4,6 @@ use std::time::SystemTime;
 #[derive(Debug)]
 pub struct Feed {
 	pub title: String,
-	pub url: Url,
 	pub entries: Vec<Entry>,
 }
 

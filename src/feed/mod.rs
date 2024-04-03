@@ -3,8 +3,7 @@ pub mod model;
 
 use crate::Result;
 use model::Feed;
-use reqwest::Url;
 
 pub trait RussetFeedReader {
-	fn load_feed(&self, url: &Url) -> Result<Feed>;
+	fn read_feed(&self, bytes: &[u8]) -> Result<Feed>;
 }
