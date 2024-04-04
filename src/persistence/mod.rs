@@ -2,13 +2,16 @@ pub mod model;
 pub mod sql;
 
 use crate::Result;
-use model::{ Entry, EntryId, Feed, FeedId, User, UserId };
+use model::{ Entry, EntryId, Feed, FeedId, User };
 use reqwest::Url;
 
-pub trait RussetPersistanceLayer {
+pub trait RussetPersistanceLayer:
+	RussetFeedPersistenceLayer +
+	RussetEntryPersistenceLayer +
+	RussetUserPersistenceLayer
+	{ }
 
-	// Feed management
-
+pub trait RussetFeedPersistenceLayer {
 	/// Add the given [Feed] to this persistence layer
 	fn add_feed(&mut self, feed: &Feed) -> Result<()>;
 
@@ -20,9 +23,9 @@ pub trait RussetPersistanceLayer {
 
 	/// Get a specified [Feed] by URL
 	fn get_feed_by_url(&self, url: &Url) -> Result<Option<Feed>>;
+}
 
-	// Entry management
-
+pub trait RussetEntryPersistenceLayer {
 	/// Add the given [Entry] to this persistence layer
 	fn add_entry(&mut self, entry: &Entry, feed_id: &FeedId) -> Result<()>;
 
@@ -34,16 +37,12 @@ pub trait RussetPersistanceLayer {
 
 	/// Atomically get-and-increment the fetch index.
 	fn get_and_increment_fetch_index(&mut self) -> Result<u32>;
+}
 
-	// User management
-
+pub trait RussetUserPersistenceLayer {
 	/// Add the given [User] to the persistence layer
 	fn add_user(&mut self, user: &User) -> Result<()>;
 
 	/// Given a username, look up that user
 	fn get_user_by_name(&self, user_name: &str) -> Result<Option<User>>;
-
-
-
-//	fn add_session(
 }
