@@ -1,5 +1,5 @@
 use crate::async_util::AsyncUtil;
-use crate::persistence::model::{ Entry, Feed };
+use crate::persistence::model::{ Entry, EntryId, Feed, FeedId, User };
 use crate::persistence::RussetPersistanceLayer;
 use crate::Result;
 use reqwest::Url;
@@ -64,7 +64,7 @@ impl RussetPersistanceLayer for SqlDatabase {
 		let rv: Vec<Result<Feed>> = match rows {
 			Ok(rows) => {
 				rows.into_iter().map(|row| {
-					let id = Ulid::from_string(&row.id)?;
+					let id = FeedId(Ulid::from_string(&row.id)?);
 					let url = Url::parse(&row.url)?;
 					Ok(Feed {
 						id,
@@ -79,12 +79,12 @@ impl RussetPersistanceLayer for SqlDatabase {
 		rv
 	}
 
-	fn get_feed(&self, id: &Ulid) -> Result<Feed> {
+	fn get_feed(&self, id: &FeedId) -> Result<Feed> {
 		let feed_id = id.to_string();
 		let row = self.async_util.run_blocking(|| async {
 			sqlx::query!("
 					SELECT
-						id, url, title
+						url, title
 					FROM feeds
 					WHERE id = ?;",
 					feed_id,
@@ -92,7 +92,7 @@ impl RussetPersistanceLayer for SqlDatabase {
 				.fetch_one(&self.pool)
 				.await
 		} )?;
-		let id = Ulid::from_string(&row.id)?;
+		let id = FeedId(id.0.clone());
 		let url = Url::parse(&row.url)?;
 		let title = row.title;
 		Ok(Feed { id, url, title })
@@ -112,7 +112,7 @@ impl RussetPersistanceLayer for SqlDatabase {
 		} );
 		match row_result {
 			Ok(row) => {
-				let id = Ulid::from_string(&row.id)?;
+				let id = FeedId(Ulid::from_string(&row.id)?);
 				let url = Url::parse(&row.url)?;
 				let title = row.title;
 				Ok(Some(Feed { id, url, title }))
@@ -122,7 +122,7 @@ impl RussetPersistanceLayer for SqlDatabase {
 		}
 	}
 
-	fn add_entry(&mut self, entry: &Entry, feed_id: &Ulid) -> Result<()> {
+	fn add_entry(&mut self, entry: &Entry, feed_id: &FeedId) -> Result<()> {
 		let entry_id = entry.id.to_string();
 		let feed_id = feed_id.to_string();
 		let article_date: i64 = entry.article_date.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis().try_into().unwrap();
@@ -146,12 +146,12 @@ impl RussetPersistanceLayer for SqlDatabase {
 		Ok(())
 	}
 
-	fn get_entry(&self, id: &Ulid) -> Result<Entry> {
+	fn get_entry(&self, id: &EntryId) -> Result<Entry> {
 		let entry_id = id.to_string();
 		let row = self.async_util.run_blocking(|| async {
 			sqlx::query!("
 					SELECT
-						id, internal_id, fetch_index, article_date, title, url
+						id, feed_id, internal_id, fetch_index, article_date, title, url
 					FROM entries
 					WHERE id = ?;",
 					entry_id,
@@ -159,11 +159,13 @@ impl RussetPersistanceLayer for SqlDatabase {
 				.fetch_one(&self.pool)
 				.await
 		} )?;
-		let id = Ulid::from_string(&row.id)?;
+		let id = EntryId(Ulid::from_string(&row.id)?);
+		let feed_id = FeedId(Ulid::from_string(&row.feed_id)?);
 		let article_date = SystemTime::UNIX_EPOCH + Duration::from_millis(row.article_date.try_into().unwrap()); //FIXME
 		let url = row.url.map(|url| Url::parse(&url)).transpose()?;
 		Ok(Entry {
 			id,
+			feed_id,
 			internal_id: row.internal_id,
 			fetch_index: row.fetch_index as u32,
 			article_date,
@@ -172,13 +174,13 @@ impl RussetPersistanceLayer for SqlDatabase {
 		} )
 	}
 
-	fn get_entries_for_feed(&self, feed_id: &Ulid) -> impl IntoIterator<Item = Result<Entry>> {
+	fn get_entries_for_feed(&self, feed_id: &FeedId) -> impl IntoIterator<Item = Result<Entry>> {
 		let feed_id = feed_id.to_string();
 		// TODO: Maybe do paging later. Or figure out how to stream from sqlx.
 		let rows = self.async_util.run_blocking(|| async {
 			sqlx::query!("
 					SELECT
-						id, internal_id, fetch_index, article_date, title, url
+						id, feed_id, internal_id, fetch_index, article_date, title, url
 					FROM entries
 					WHERE feed_id = ?;",
 					feed_id,
@@ -189,11 +191,13 @@ impl RussetPersistanceLayer for SqlDatabase {
 		let rv: Vec<Result<Entry>> = match rows {
 			Ok(rows) => {
 				rows.into_iter().map(|row| {
-					let id = Ulid::from_string(&row.id)?;
+					let id = EntryId(Ulid::from_string(&row.id)?);
+					let feed_id = FeedId(Ulid::from_string(&row.feed_id)?);
 					let article_date = SystemTime::UNIX_EPOCH + Duration::from_millis(row.article_date.try_into().unwrap()); //FIXME
 					let url = row.url.map(|url| Url::parse(&url)).transpose()?;
 					Ok(Entry {
 						id,
+						feed_id,
 						internal_id: row.internal_id,
 						fetch_index: row.fetch_index as u32,
 						article_date,
@@ -220,5 +224,9 @@ impl RussetPersistanceLayer for SqlDatabase {
 		} )?;
 		let index = (row.fetch_index - 1).try_into()?;
 		Ok(index)
+	}
+
+	fn get_user_by_name(&self, user_name: &str) -> Result<Option<User>> {
+		todo!()
 	}
 }

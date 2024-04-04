@@ -1,12 +1,12 @@
 use crate::domain::RussetDomainService;
 use crate::{ Err, Result };
-use crate::persistence::model::{ Entry, Feed };
+use crate::persistence::model::{ Entry, EntryId, Feed, FeedId };
 use crate::persistence::RussetPersistanceLayer;
 use crate::feed::model::Feed as ReaderFeed;
 use reqwest::Url;
 use ulid::Ulid;
 
-impl <Persistence> RussetDomainService<Persistence>
+impl <Persistence> RussetDomainService<'_, Persistence>
 where Persistence: RussetPersistanceLayer {
 
 	/// Update the stored entries for all feeds known to the persistence layer
@@ -41,7 +41,7 @@ where Persistence: RussetPersistanceLayer {
 				} )?;
 				let reader_feed = self.feed_from_bytes(&bytes)?;
 				let feed = Feed {
-					id: Ulid::new(),
+					id: FeedId(Ulid::new()),
 					title: reader_feed.title.clone(),
 					url: url.clone(),
 				};
@@ -52,6 +52,7 @@ where Persistence: RussetPersistanceLayer {
 		}
 	}
 
+	/// Update the persistence layer with [feed] (at fetch [fetch_index])
 	fn update_feed(&mut self, feed: &Feed, fetch_index: u32) -> Result<()> {
 		let bytes = self.async_util.run_blocking(|| async {
 			reqwest::get(feed.url.clone())
@@ -64,6 +65,8 @@ where Persistence: RussetPersistanceLayer {
 		self.update_with_entries(feed, &reader_feed, fetch_index)
 	}
 
+	/// Given a parsed [reader_feed], update the persistence layer for [feed]
+	/// with the entries from it
 	fn update_with_entries(&mut self, feed: &Feed, reader_feed: &ReaderFeed, fetch_index: u32) -> Result<()> {
 		let storage_entries = self.persistence
 			.get_entries_for_feed(&feed.id)
@@ -80,7 +83,8 @@ where Persistence: RussetPersistanceLayer {
 			} )
 			.map (|entry| {
 				Entry {
-					id: Ulid::new(),
+					id: EntryId(Ulid::new()),
+					feed_id: FeedId(feed.id.0.clone()),
 					internal_id: entry.internal_id.clone(),
 					fetch_index,
 					article_date: entry.article_date,
@@ -95,6 +99,7 @@ where Persistence: RussetPersistanceLayer {
 		Ok(())
 	}
 
+	/// Given a 
 	fn feed_from_bytes(&self, bytes: &[u8]) -> Result<ReaderFeed> {
 		self.readers.as_slice().into_iter()
 			.find_map(|reader| reader.read_feed(&bytes).ok())

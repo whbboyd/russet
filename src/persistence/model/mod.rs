@@ -1,49 +1,45 @@
 use reqwest::Url;
-use std::fmt::Debug;
+use std::ops::Deref;
 use std::time::SystemTime;
 use ulid::Ulid;
 
+#[derive(Debug)]
+pub struct FeedId(pub Ulid);
+impl Deref for FeedId { type Target = Ulid; fn deref(&self) -> &Self::Target { &self.0 } }
 /// Metadata for a feed, e.g. title and feed URL
+#[derive(Debug)]
 pub struct Feed {
-	pub id: Ulid,
+	pub id: FeedId,
 	pub title: String,
 	pub url: Url,
 }
-impl Debug for Feed {
-	/// Customized `Debug` implementation because `Ulid` and `Url` have very
-	/// unhelpful `Debug`s.
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		write!(f,
-			"Feed {{ id: {}, title: {:?}, url: \"{}\" }}",
-			self.id.to_string(),
-			self.title,
-			self.url.to_string(),
-		)
-	}
-}
 
+#[derive(Debug)]
+pub struct EntryId(pub Ulid);
+impl Deref for EntryId{ type Target = Ulid; fn deref(&self) -> &Self::Target { &self.0 } }
 /// Individual entry from a given feed
+#[derive(Debug)]
 pub struct Entry {
-	pub id: Ulid,
+	pub id: EntryId,
+	pub feed_id: FeedId,
 	pub internal_id: String,
 	pub fetch_index: u32,
 	pub article_date: SystemTime,
 	pub title: String,
 	pub url: Option<Url>,
 }
-impl Debug for Entry {
-	/// Customized `Debug` implementation because `Ulid` and `Url` have very
-	/// unhelpful `Debug`s.
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		write!(f,
-			"Entry {{ id: {}, internal_id: {:?}, fetch_index: {}, article_date: {:?}, title: {:?}, url: {:?} }}",
-			self.id.to_string(),
-			self.internal_id,
-			self.fetch_index,
-			self.article_date,
-			self.title,
-			self.url.as_ref().map(|u| u.to_string()),
-		)
-	}
+
+#[derive(Debug)]
+pub struct UserId(pub Ulid);
+impl Deref for UserId{ type Target = Ulid; fn deref(&self) -> &Self::Target { &self.0 } }
+#[derive(Debug)]
+pub struct User {
+	pub id: UserId,
+	pub name: String,
+	pub password_hash: String,
 }
 
+pub struct Session {
+	pub token: String,
+	
+}
