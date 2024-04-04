@@ -4,7 +4,6 @@ pub mod sql;
 use crate::Result;
 use model::{ Entry, EntryId, Feed, FeedId, User, UserId };
 use reqwest::Url;
-use ulid::Ulid;
 
 pub trait RussetPersistanceLayer {
 
@@ -38,8 +37,13 @@ pub trait RussetPersistanceLayer {
 
 	// User management
 
+	/// Add the given [User] to the persistence layer
+	fn add_user(&mut self, user: &User) -> Result<()>;
+
 	/// Given a username, look up that user
 	fn get_user_by_name(&self, user_name: &str) -> Result<Option<User>>;
+
+
 
 //	fn add_session(
 }

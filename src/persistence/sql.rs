@@ -1,5 +1,5 @@
 use crate::async_util::AsyncUtil;
-use crate::persistence::model::{ Entry, EntryId, Feed, FeedId, User };
+use crate::persistence::model::{ Entry, EntryId, Feed, FeedId, User, UserId };
 use crate::persistence::RussetPersistanceLayer;
 use crate::Result;
 use reqwest::Url;
@@ -226,7 +226,45 @@ impl RussetPersistanceLayer for SqlDatabase {
 		Ok(index)
 	}
 
+	fn add_user(&mut self, user: &User) -> Result<()> {
+		let user_id = user.id.to_string();
+		self.async_util.run_blocking(|| async {
+			sqlx::query!("
+					INSERT INTO users (
+						id, name, password_hash
+					) VALUES ( ?, ?, ? )",
+					user_id,
+					user.name,
+					user.password_hash,
+				)
+				.execute(&self.pool)
+				.await
+		} )?;
+		Ok(())
+	}
+
 	fn get_user_by_name(&self, user_name: &str) -> Result<Option<User>> {
-		todo!()
+		let row_result = self.async_util.run_blocking(|| async {
+			sqlx::query!("
+					SELECT
+						id, name, password_hash
+					FROM users
+					WHERE name = ?;",
+					user_name)
+				.fetch_one(&self.pool)
+				.await
+		} );
+		match row_result {
+			Ok(row) => {
+				let id = UserId(Ulid::from_string(&row.id)?);
+				Ok(Some(User {
+					id,
+					name: row.name,
+					password_hash: row.password_hash
+				} ) )
+			},
+			Err(sqlx::Error::RowNotFound) => Ok(None),
+			Err(e) => Err(Box::new(e)),
+		}
 	}
 }

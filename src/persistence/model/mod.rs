@@ -39,7 +39,9 @@ pub struct User {
 	pub password_hash: String,
 }
 
+#[derive(Debug)]
 pub struct Session {
 	pub token: String,
-	
+	pub user_id: UserId,
+	pub expiration: SystemTime,
 }

@@ -1,15 +1,50 @@
+use argon2::{ PasswordHash, PasswordHasher, PasswordVerifier };
+use argon2::password_hash::Error::Password;
+use argon2::password_hash::SaltString;
+use argon2::password_hash::rand_core::OsRng;
 use crate::domain::RussetDomainService;
-use crate::{ Err, Result };
-use crate::persistence::model::{ Entry, Feed };
+use crate::Result;
 use crate::persistence::RussetPersistanceLayer;
-use crate::feed::model::Feed as ReaderFeed;
-use reqwest::Url;
+use crate::persistence::model::{ User, UserId };
 use ulid::Ulid;
 
 impl <'pepper, Persistence> RussetDomainService<'pepper, Persistence>
 where Persistence: RussetPersistanceLayer {
 
-	pub fn login_user(user_name: String, plaintext_password: String) -> Option<String> {
-		todo!()
+	pub fn login_user(&mut self, user_name: String, plaintext_password: String) -> Result<Option<String>> {
+		let password_bytes = plaintext_password.into_bytes();
+		match self.persistence.get_user_by_name(&user_name)? {
+			Some(user) => {
+				let parsed_hash = PasswordHash::new(&user.password_hash)?;
+				match self.password_hash.verify_password(&password_bytes, &parsed_hash) {
+					Ok(_) => {
+						todo!()
+					},
+					Err(Password) => Ok(None),
+					Err(e) => Err(Box::new(e)),
+				}
+			}
+			None => {
+				// Hash the password anyway to resist user enumeration via side channels
+				let parsed_hash = PasswordHash::new("$argon2id$v=19$m=19456,t=2,p=1$DFhnniX1Kn3JoEKD5e9qbQ$IxgxUYNYPTvPTjez280uFJh166f+eNkCXntlVe5NaZQ").unwrap();
+				let _ = self.password_hash.verify_password(&password_bytes, &parsed_hash);
+				Ok(None)
+			}
+		}
+	}
+
+	pub fn add_user(&mut self, user_name: String, plaintext_password: String) -> Result<()> {
+		if let Some(user) = self.persistence.get_user_by_name(&user_name)? {
+			return Err(format!("User {} ({}) already exists", user.name, user.id.to_string()).into());
+		}
+		let salt = SaltString::generate(&mut OsRng);
+		let password_hash = self.password_hash.hash_password(plaintext_password.as_bytes(), &salt)?.to_string();
+		let user = User {
+			id: UserId(Ulid::new()),
+			name: user_name,
+			password_hash,
+		};
+		self.persistence.add_user(&user)?;
+		Ok(())
 	}
 }
