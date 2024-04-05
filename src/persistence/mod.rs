@@ -5,7 +5,7 @@ use crate::Result;
 use model::{ Entry, EntryId, Feed, FeedId, User };
 use reqwest::Url;
 
-pub trait RussetPersistanceLayer:
+pub trait RussetPersistenceLayer:
 	RussetFeedPersistenceLayer +
 	RussetEntryPersistenceLayer +
 	RussetUserPersistenceLayer

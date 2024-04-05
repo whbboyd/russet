@@ -4,12 +4,12 @@ use argon2::password_hash::SaltString;
 use argon2::password_hash::rand_core::OsRng;
 use crate::domain::RussetDomainService;
 use crate::Result;
-use crate::persistence::RussetPersistanceLayer;
+use crate::persistence::RussetPersistenceLayer;
 use crate::persistence::model::{ User, UserId };
 use ulid::Ulid;
 
 impl <'pepper, Persistence> RussetDomainService<'pepper, Persistence>
-where Persistence: RussetPersistanceLayer {
+where Persistence: RussetPersistenceLayer {
 
 	pub fn login_user(&mut self, user_name: String, plaintext_password: String) -> Result<Option<String>> {
 		let password_bytes = plaintext_password.into_bytes();

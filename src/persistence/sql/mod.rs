@@ -3,7 +3,7 @@ pub mod feed;
 pub mod user;
 
 use crate::async_util::AsyncUtil;
-use crate::persistence::RussetPersistanceLayer;
+use crate::persistence::RussetPersistenceLayer;
 use crate::Result;
 use sqlx::{ Pool, Sqlite };
 use std::error::Error;
@@ -30,4 +30,4 @@ impl SqlDatabase {
 	}
 }
 
-impl RussetPersistanceLayer for SqlDatabase { }
+impl RussetPersistenceLayer for SqlDatabase { }
