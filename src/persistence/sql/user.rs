@@ -6,34 +6,30 @@ use ulid::Ulid;
 
 impl RussetUserPersistenceLayer for SqlDatabase {
 
-	fn add_user(&mut self, user: &User) -> Result<()> {
+	async fn add_user(&mut self, user: &User) -> Result<()> {
 		let user_id = user.id.to_string();
-		self.async_util.run_blocking(|| async {
-			sqlx::query!("
-					INSERT INTO users (
-						id, name, password_hash
-					) VALUES ( ?, ?, ? )",
-					user_id,
-					user.name,
-					user.password_hash,
-				)
-				.execute(&self.pool)
-				.await
-		} )?;
+		sqlx::query!("
+				INSERT INTO users (
+					id, name, password_hash
+				) VALUES ( ?, ?, ? )",
+				user_id,
+				user.name,
+				user.password_hash,
+			)
+			.execute(&self.pool)
+			.await?;
 		Ok(())
 	}
 
-	fn get_user_by_name(&self, user_name: &str) -> Result<Option<User>> {
-		let row_result = self.async_util.run_blocking(|| async {
-			sqlx::query!("
-					SELECT
-						id, name, password_hash
-					FROM users
-					WHERE name = ?;",
-					user_name)
-				.fetch_one(&self.pool)
-				.await
-		} );
+	async fn get_user_by_name(&self, user_name: &str) -> Result<Option<User>> {
+		let row_result = sqlx::query!("
+				SELECT
+					id, name, password_hash
+				FROM users
+				WHERE name = ?;",
+				user_name)
+			.fetch_one(&self.pool)
+			.await;
 		match row_result {
 			Ok(row) => {
 				let id = UserId(Ulid::from_string(&row.id)?);

@@ -11,9 +11,9 @@ use ulid::Ulid;
 impl <'pepper, Persistence> RussetDomainService<'pepper, Persistence>
 where Persistence: RussetPersistenceLayer {
 
-	pub fn login_user(&mut self, user_name: String, plaintext_password: String) -> Result<Option<String>> {
+	pub async fn login_user(&mut self, user_name: String, plaintext_password: String) -> Result<Option<String>> {
 		let password_bytes = plaintext_password.into_bytes();
-		match self.persistence.get_user_by_name(&user_name)? {
+		match self.persistence.get_user_by_name(&user_name).await? {
 			Some(user) => {
 				let parsed_hash = PasswordHash::new(&user.password_hash)?;
 				match self.password_hash.verify_password(&password_bytes, &parsed_hash) {
@@ -33,8 +33,8 @@ where Persistence: RussetPersistenceLayer {
 		}
 	}
 
-	pub fn add_user(&mut self, user_name: String, plaintext_password: String) -> Result<()> {
-		if let Some(user) = self.persistence.get_user_by_name(&user_name)? {
+	pub async fn add_user(&mut self, user_name: String, plaintext_password: String) -> Result<()> {
+		if let Some(user) = self.persistence.get_user_by_name(&user_name).await? {
 			return Err(format!("User {} ({}) already exists", user.name, user.id.to_string()).into());
 		}
 		let salt = SaltString::generate(&mut OsRng);
@@ -44,7 +44,7 @@ where Persistence: RussetPersistenceLayer {
 			name: user_name,
 			password_hash,
 		};
-		self.persistence.add_user(&user)?;
+		self.persistence.add_user(&user).await?;
 		Ok(())
 	}
 }

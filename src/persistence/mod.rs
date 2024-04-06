@@ -19,7 +19,7 @@ pub trait RussetFeedPersistenceLayer {
 	async fn get_feeds(&self) -> impl IntoIterator<Item = Result<Feed>>;
 
 	/// Get a specific [Feed] by ID
-	fn get_feed(&self, id: &FeedId) -> Result<Feed>;
+	async fn get_feed(&self, id: &FeedId) -> Result<Feed>;
 
 	/// Get a specified [Feed] by URL
 	async fn get_feed_by_url(&self, url: &Url) -> Result<Option<Feed>>;
@@ -27,10 +27,10 @@ pub trait RussetFeedPersistenceLayer {
 
 pub trait RussetEntryPersistenceLayer {
 	/// Add the given [Entry] to this persistence layer
-	fn add_entry(&mut self, entry: &Entry, feed_id: &FeedId) -> Result<()>;
+	async fn add_entry(&mut self, entry: &Entry, feed_id: &FeedId) -> Result<()>;
 
 	/// Get a specified [Entry] by ID
-	fn get_entry(&self, id: &EntryId) -> Result<Entry>;
+	async fn get_entry(&self, id: &EntryId) -> Result<Entry>;
 
 	/// Get all the [Entry]s for the [Feed] with the given ID
 	async fn get_entries_for_feed(&self, feed_id: &FeedId) -> impl IntoIterator<Item = Result<Entry>>;
@@ -41,8 +41,8 @@ pub trait RussetEntryPersistenceLayer {
 
 pub trait RussetUserPersistenceLayer {
 	/// Add the given [User] to the persistence layer
-	fn add_user(&mut self, user: &User) -> Result<()>;
+	async fn add_user(&mut self, user: &User) -> Result<()>;
 
 	/// Given a username, look up that user
-	fn get_user_by_name(&self, user_name: &str) -> Result<Option<User>>;
+	async fn get_user_by_name(&self, user_name: &str) -> Result<Option<User>>;
 }

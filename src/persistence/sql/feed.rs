@@ -50,19 +50,17 @@ impl RussetFeedPersistenceLayer for SqlDatabase {
 		rv
 	}
 
-	fn get_feed(&self, id: &FeedId) -> Result<Feed> {
+	async fn get_feed(&self, id: &FeedId) -> Result<Feed> {
 		let feed_id = id.to_string();
-		let row = self.async_util.run_blocking(|| async {
-			sqlx::query!("
-					SELECT
-						url, title
-					FROM feeds
-					WHERE id = ?;",
-					feed_id,
-				)
-				.fetch_one(&self.pool)
-				.await
-		} )?;
+		let row = sqlx::query!("
+				SELECT
+					url, title
+				FROM feeds
+				WHERE id = ?;",
+				feed_id,
+			)
+			.fetch_one(&self.pool)
+			.await?;
 		let id = FeedId(id.0.clone());
 		let url = Url::parse(&row.url)?;
 		let title = row.title;

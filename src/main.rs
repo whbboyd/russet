@@ -29,7 +29,7 @@ fn main() -> Result<()> {
 	println!("================================================================================");
 	let async_util = Arc::new(AsyncUtil::new());
 	async_util.run_blocking(|| async {
-		let db = SqlDatabase::new(Path::new(DB_FILE), async_util.clone()).await?;
+		let db = SqlDatabase::new(Path::new(DB_FILE)).await?;
 		let reader = Box::new(AtomFeedReader::new());
 		let mut domain_service = RussetDomainService::new(db, vec![reader], PEPPER.as_bytes())?;
 		let url = reqwest::Url::parse(FEED_URL).unwrap();

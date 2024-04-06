@@ -91,7 +91,7 @@ where Persistence: RussetPersistenceLayer {
 			} )
 			.collect::<Vec<Entry>>();
 		for e in new_entries.as_slice() {
-			self.persistence.add_entry(e, &feed.id)?;
+			self.persistence.add_entry(e, &feed.id).await?;
 		}
 		Ok(())
 	}
