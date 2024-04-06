@@ -12,7 +12,7 @@ use std::time::{ Duration, SystemTime };
 use ulid::Ulid;
 
 impl <'pepper, Persistence> RussetDomainService<Persistence>
-where Persistence: RussetPersistenceLayer {
+where Persistence: RussetPersistenceLayer + std::fmt::Debug {
 
 	pub async fn login_user(&self, user_name: String, plaintext_password: String) -> Result<Option<String>> {
 		let password_hash = Argon2::new_with_secret(

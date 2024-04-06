@@ -18,4 +18,5 @@ sqlx = { version = "0.7", features = ["sqlite", "migrate", "runtime-tokio-native
 tokio = { version = "1.36", features = ["full"] }
 tokio-stream = "0.1"
 tracing = { version = "0.1", features = ["log"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 ulid = "1.1"

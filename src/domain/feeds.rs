@@ -7,7 +7,7 @@ use reqwest::Url;
 use ulid::Ulid;
 
 impl <Persistence> RussetDomainService<Persistence>
-where Persistence: RussetPersistenceLayer {
+where Persistence: RussetPersistenceLayer + std::fmt::Debug {
 
 	/// Update the stored entries for all feeds known to the persistence layer
 	pub async fn update_feeds(&mut self) -> Result<()> {

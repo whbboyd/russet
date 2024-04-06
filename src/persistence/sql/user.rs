@@ -7,6 +7,7 @@ use ulid::Ulid;
 
 impl RussetUserPersistenceLayer for SqlDatabase {
 
+	#[tracing::instrument]
 	async fn add_user(&mut self, user: &User) -> Result<()> {
 		let user_id = user.id.to_string();
 		sqlx::query!("
@@ -22,6 +23,7 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 		Ok(())
 	}
 
+	#[tracing::instrument]
 	async fn get_user_by_name(&self, user_name: &str) -> Result<Option<User>> {
 		let row_result = sqlx::query!("
 				SELECT
@@ -45,6 +47,7 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 		}
 	}
 
+	#[tracing::instrument]
 	async fn add_session(&self, session: &Session) -> Result<()> {
 		let user_id = session.user_id.to_string();
 		let expiration: i64 = session.expiration.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis().try_into().unwrap();

@@ -8,6 +8,7 @@ use ulid::Ulid;
 
 impl RussetEntryPersistenceLayer for SqlDatabase {
 
+	#[tracing::instrument]
 	async fn add_entry(&mut self, entry: &Entry, feed_id: &FeedId) -> Result<()> {
 		let entry_id = entry.id.to_string();
 		let feed_id = feed_id.to_string();
@@ -30,6 +31,7 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 		Ok(())
 	}
 
+	#[tracing::instrument]
 	async fn get_entry(&self, id: &EntryId) -> Result<Entry> {
 		let entry_id = id.to_string();
 		let row = sqlx::query!("
@@ -56,6 +58,7 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 		} )
 	}
 
+	#[tracing::instrument]
 	async fn get_entries_for_feed(&self, feed_id: &FeedId) -> impl IntoIterator<Item = Result<Entry>> {
 		let feed_id = feed_id.to_string();
 		// TODO: Maybe do paging later. Or figure out how to stream from sqlx.
@@ -92,6 +95,7 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 		rv
 	}
 
+	#[tracing::instrument]
 	async fn get_and_increment_fetch_index(&mut self) -> Result<u32> {
 		let row = sqlx::query!("
 				UPDATE metadata

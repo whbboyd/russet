@@ -32,16 +32,32 @@ pub struct Entry {
 #[derive(Debug)]
 pub struct UserId(pub Ulid);
 impl Deref for UserId{ type Target = Ulid; fn deref(&self) -> &Self::Target { &self.0 } }
-#[derive(Debug)]
 pub struct User {
 	pub id: UserId,
 	pub name: String,
 	pub password_hash: String,
 }
+impl std::fmt::Debug for User {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("User")
+			.field("id", &self.id.to_string())
+			.field("name", &self.name)
+			.field("password_hash", &"<redacted>")
+			.finish()
+	}
+}
 
-#[derive(Debug)]
 pub struct Session {
 	pub token: String,
 	pub user_id: UserId,
 	pub expiration: SystemTime,
+}
+impl std::fmt::Debug for Session {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("Session")
+			.field("token", &format!("{}<redacted>", &self.token[..4]))
+			.field("user_id", &self.user_id.to_string())
+			.field("expiration", &self.expiration)
+			.finish()
+	}
 }
