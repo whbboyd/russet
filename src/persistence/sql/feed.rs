@@ -34,15 +34,16 @@ impl RussetFeedPersistenceLayer for SqlDatabase {
 			.await;
 		let rv: Vec<Result<Feed>> = match rows {
 			Ok(rows) => {
-				rows.into_iter().map(|row| {
-					let id = FeedId(Ulid::from_string(&row.id)?);
-					let url = Url::parse(&row.url)?;
-					Ok(Feed {
-						id,
-						title: row.title,
-						url,
+				rows.into_iter()
+					.map(|row| {
+						let id = FeedId(Ulid::from_string(&row.id)?);
+						let url = Url::parse(&row.url)?;
+						Ok(Feed {
+							id,
+							title: row.title,
+							url,
+						} )
 					} )
-				} )
 					.collect()
 			},
 			Err(e) => vec![Err(Box::new(e))],

@@ -1,33 +1,28 @@
+pub mod entries;
 pub mod feeds;
 pub mod user;
 
-use argon2::Argon2;
 use crate::feed::RussetFeedReader;
 use crate::persistence::RussetPersistenceLayer;
 use crate::Result;
 
-pub struct RussetDomainService<'pepper, Persistence>
+pub struct RussetDomainService<Persistence>
 where Persistence: RussetPersistenceLayer {
 	persistence: Persistence,
-	readers: Vec<Box<dyn RussetFeedReader>>,
-	password_hash: Argon2<'pepper>,
+	readers: Vec<Box<dyn RussetFeedReader + Send + Sync>>,
+	pepper: Vec<u8>,
 }
-impl <'pepper, Persistence> RussetDomainService<'pepper, Persistence>
+impl <Persistence> RussetDomainService<Persistence>
 where Persistence: RussetPersistenceLayer {
 	pub fn new(
 		persistence: Persistence,
-		readers: Vec<Box<dyn RussetFeedReader>>,
-		pepper: &'pepper [u8],
-	) -> Result<RussetDomainService<'pepper, Persistence>> {
+		readers: Vec<Box<dyn RussetFeedReader + Send + Sync>>,
+		pepper: Vec<u8>,
+	) -> Result<RussetDomainService<Persistence>> {
 		Ok(RussetDomainService {
 			persistence,
 			readers,
-			password_hash: Argon2::new_with_secret(
-				&pepper,
-				argon2::Algorithm::Argon2id,
-				argon2::Version::V0x13,
-				argon2::Params::DEFAULT,
-			)?,
+			pepper,
 		} )
 	}
 }

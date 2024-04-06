@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 argon2 = { version = "0.5", features = ["alloc", "std"] }
 atom_syndication = "0.12"
+axum = { version = "0.7", features = ["tracing"] }
 chrono = "0.4"
 reqwest = "0.11"
 rss = "2.0"

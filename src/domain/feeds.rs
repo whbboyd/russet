@@ -6,7 +6,7 @@ use crate::feed::model::Feed as ReaderFeed;
 use reqwest::Url;
 use ulid::Ulid;
 
-impl <Persistence> RussetDomainService<'_, Persistence>
+impl <Persistence> RussetDomainService<Persistence>
 where Persistence: RussetPersistenceLayer {
 
 	/// Update the stored entries for all feeds known to the persistence layer
@@ -48,6 +48,11 @@ where Persistence: RussetPersistenceLayer {
 				self.update_with_entries(&feed, &reader_feed, fetch_index).await
 			}
 		}
+	}
+
+	// TODO: Ultimately this will be by-user
+	pub async fn get_feeds(&self) -> Vec<Result<Feed>> {
+		self.persistence.get_feeds().await.into_iter().collect()
 	}
 
 	/// Update the persistence layer with [feed] (at fetch [fetch_index])
