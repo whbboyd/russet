@@ -60,11 +60,10 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 		} )
 	}
 
-	fn get_entries_for_feed(&self, feed_id: &FeedId) -> impl IntoIterator<Item = Result<Entry>> {
+	async fn get_entries_for_feed(&self, feed_id: &FeedId) -> impl IntoIterator<Item = Result<Entry>> {
 		let feed_id = feed_id.to_string();
 		// TODO: Maybe do paging later. Or figure out how to stream from sqlx.
-		let rows = self.async_util.run_blocking(|| async {
-			sqlx::query!("
+		let rows = sqlx::query!("
 					SELECT
 						id, feed_id, internal_id, fetch_index, article_date, title, url
 					FROM entries
@@ -72,8 +71,7 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 					feed_id,
 				)
 				.fetch_all(&self.pool)
-				.await
-		} );
+				.await;
 		let rv: Vec<Result<Entry>> = match rows {
 			Ok(rows) => {
 				rows.into_iter().map(|row| {
@@ -98,16 +96,14 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 		rv
 	}
 
-	fn get_and_increment_fetch_index(&mut self) -> Result<u32> {
-		let row = self.async_util.run_blocking(|| async {
-			sqlx::query!("
+	async fn get_and_increment_fetch_index(&mut self) -> Result<u32> {
+		let row = sqlx::query!("
 					UPDATE metadata
 					SET fetch_index = fetch_index + 1
 					RETURNING fetch_index"
 				)
 				.fetch_one(&self.pool)
-				.await
-		} )?;
+				.await?;
 		let index = (row.fetch_index - 1).try_into()?;
 		Ok(index)
 	}

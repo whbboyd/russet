@@ -7,35 +7,31 @@ use ulid::Ulid;
 
 impl RussetFeedPersistenceLayer for SqlDatabase {
 
-	fn add_feed(&mut self, feed: &Feed) -> Result<()> {
+	async fn add_feed(&mut self, feed: &Feed) -> Result<()> {
 		let feed_id = feed.id.to_string();
 		let feed_url = feed.url.to_string();
-		self.async_util.run_blocking(|| async {
-			sqlx::query!("
-					INSERT INTO feeds (
-						id, url, title
-					) VALUES ( ?, ?, ? )",
-					feed_id,
-					feed_url,
-					feed.title,
-				)
-				.execute(&self.pool)
-				.await
-		} )?;
+		sqlx::query!("
+				INSERT INTO feeds (
+					id, url, title
+				) VALUES ( ?, ?, ? )",
+				feed_id,
+				feed_url,
+				feed.title,
+			)
+			.execute(&self.pool)
+			.await?;
 		Ok(())
 	}
 
-	fn get_feeds(&self) -> impl IntoIterator<Item = Result<Feed>> {
+	async fn get_feeds(&self) -> impl IntoIterator<Item = Result<Feed>> {
 		// TODO: Maybe do paging later. Or figure out how to stream from sqlx.
-		let rows = self.async_util.run_blocking(|| async {
-			sqlx::query!("
-					SELECT
-						id, url, title
-					FROM feeds;"
-				)
-				.fetch_all(&self.pool)
-				.await
-		} );
+		let rows = sqlx::query!("
+				SELECT
+					id, url, title
+				FROM feeds;"
+			)
+			.fetch_all(&self.pool)
+			.await;
 		let rv: Vec<Result<Feed>> = match rows {
 			Ok(rows) => {
 				rows.into_iter().map(|row| {
@@ -73,18 +69,16 @@ impl RussetFeedPersistenceLayer for SqlDatabase {
 		Ok(Feed { id, url, title })
 	}
 
-	fn get_feed_by_url(&self, url: &Url) -> Result<Option<Feed>> {
+	async fn get_feed_by_url(&self, url: &Url) -> Result<Option<Feed>> {
 		let feed_url = url.to_string();
-		let row_result = self.async_util.run_blocking(|| async {
-			sqlx::query!("
-					SELECT
-						id, url, title
-					FROM feeds
-					WHERE url = ?;",
-					feed_url)
-				.fetch_one(&self.pool)
-				.await
-		} );
+		let row_result = sqlx::query!("
+				SELECT
+					id, url, title
+				FROM feeds
+				WHERE url = ?;",
+				feed_url)
+			.fetch_one(&self.pool)
+			.await;
 		match row_result {
 			Ok(row) => {
 				let id = FeedId(Ulid::from_string(&row.id)?);

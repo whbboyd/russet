@@ -16,16 +16,12 @@ pub struct SqlDatabase {
 	async_util: Arc<AsyncUtil>,
 }
 impl SqlDatabase {
-	pub fn new(db_path: &Path, async_util: Arc<AsyncUtil>) -> Result<SqlDatabase> {
+	pub async fn new(db_path: &Path, async_util: Arc<AsyncUtil>) -> Result<SqlDatabase> {
 		let path = db_path
 			.to_str()
 			.ok_or::<Box<dyn Error>>("db_path is not valid UTF-8".into())?;
-		let pool = async_util.run_blocking(|| async {
-			Pool::<Sqlite>::connect(path).await
-		} )?;
-		async_util.run_blocking(|| async {
-			sqlx::migrate!("db/migrations/").run(&pool).await
-		} )?;
+		let pool = Pool::<Sqlite>::connect(path).await?;
+		sqlx::migrate!("db/migrations/").run(&pool).await?;
 		Ok(SqlDatabase { pool, async_util })
 	}
 }

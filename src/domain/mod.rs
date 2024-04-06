@@ -2,17 +2,14 @@ pub mod feeds;
 pub mod user;
 
 use argon2::Argon2;
-use crate::async_util::AsyncUtil;
 use crate::feed::RussetFeedReader;
 use crate::persistence::RussetPersistenceLayer;
 use crate::Result;
-use std::sync::Arc;
 
 pub struct RussetDomainService<'pepper, Persistence>
 where Persistence: RussetPersistenceLayer {
 	persistence: Persistence,
 	readers: Vec<Box<dyn RussetFeedReader>>,
-	async_util: Arc<AsyncUtil>,
 	password_hash: Argon2<'pepper>,
 }
 impl <'pepper, Persistence> RussetDomainService<'pepper, Persistence>
@@ -20,13 +17,11 @@ where Persistence: RussetPersistenceLayer {
 	pub fn new(
 		persistence: Persistence,
 		readers: Vec<Box<dyn RussetFeedReader>>,
-		async_util: Arc<AsyncUtil>,
 		pepper: &'pepper [u8],
 	) -> Result<RussetDomainService<'pepper, Persistence>> {
 		Ok(RussetDomainService {
 			persistence,
 			readers,
-			async_util,
 			password_hash: Argon2::new_with_secret(
 				&pepper,
 				argon2::Algorithm::Argon2id,
