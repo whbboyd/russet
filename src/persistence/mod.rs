@@ -2,7 +2,7 @@ pub mod model;
 pub mod sql;
 
 use crate::Result;
-use model::{ Entry, EntryId, Feed, FeedId, User };
+use model::{ Entry, EntryId, Feed, FeedId, Session, User };
 use reqwest::Url;
 
 pub trait RussetPersistenceLayer:
@@ -45,4 +45,7 @@ pub trait RussetUserPersistenceLayer {
 
 	/// Given a username, look up that user
 	async fn get_user_by_name(&self, user_name: &str) -> Result<Option<User>>;
+
+	/// Add the given [Session] to the persistence layer, logging in a user
+	async fn add_session(&self, session: &Session) -> Result<()>;
 }

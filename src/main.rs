@@ -31,7 +31,7 @@ async fn main() -> Result<()> {
 	let db = SqlDatabase::new(Path::new(DB_FILE)).await?;
 	let reader = Box::new(AtomFeedReader::new());
 	let mut domain_service = RussetDomainService::new(db, vec![reader], PEPPER.as_bytes().to_vec())?;
-	let url = reqwest::Url::parse(FEED_URL).unwrap();
+	let url = reqwest::Url::parse(FEED_URL)?;
 	domain_service.add_feed(&url).await?;
 	println!("================================================================================");
 	let app_state = http::AppState { hello: "Hello, state!".to_string(), domain_service: Arc::new(domain_service) };

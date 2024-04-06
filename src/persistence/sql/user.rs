@@ -1,7 +1,8 @@
-use crate::persistence::model::{ User, UserId };
+use crate::persistence::model::{ Session, User, UserId };
 use crate::persistence::RussetUserPersistenceLayer;
 use crate::persistence::sql::SqlDatabase;
 use crate::Result;
+use std::time::SystemTime;
 use ulid::Ulid;
 
 impl RussetUserPersistenceLayer for SqlDatabase {
@@ -42,6 +43,22 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 			Err(sqlx::Error::RowNotFound) => Ok(None),
 			Err(e) => Err(Box::new(e)),
 		}
+	}
+
+	async fn add_session(&self, session: &Session) -> Result<()> {
+		let user_id = session.user_id.to_string();
+		let expiration: i64 = session.expiration.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis().try_into().unwrap();
+		sqlx::query!("
+				INSERT INTO sessions (
+					token, user_id, expiration
+				) VALUES ( ?, ?, ? )",
+				session.token,
+				user_id,
+				expiration,
+			)
+			.execute(&self.pool)
+			.await?;
+		Ok(())
 	}
 
 }

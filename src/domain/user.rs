@@ -2,16 +2,19 @@ use argon2::{ Argon2, PasswordHash, PasswordHasher, PasswordVerifier };
 use argon2::password_hash::Error::Password;
 use argon2::password_hash::SaltString;
 use argon2::password_hash::rand_core::OsRng;
+use base32ct::{ Base32Upper, Encoding };
 use crate::domain::RussetDomainService;
 use crate::Result;
 use crate::persistence::RussetPersistenceLayer;
-use crate::persistence::model::{ User, UserId };
+use crate::persistence::model::{ Session, User, UserId };
+use getrandom::getrandom;
+use std::time::{ Duration, SystemTime };
 use ulid::Ulid;
 
 impl <'pepper, Persistence> RussetDomainService<Persistence>
 where Persistence: RussetPersistenceLayer {
 
-	pub async fn login_user(&mut self, user_name: String, plaintext_password: String) -> Result<Option<String>> {
+	pub async fn login_user(&self, user_name: String, plaintext_password: String) -> Result<Option<String>> {
 		let password_hash = Argon2::new_with_secret(
 				self.pepper.as_slice(),
 				argon2::Algorithm::Argon2id,
@@ -19,12 +22,21 @@ where Persistence: RussetPersistenceLayer {
 				argon2::Params::DEFAULT,
 			)?;
 		let password_bytes = plaintext_password.into_bytes();
-		match self.persistence.get_user_by_name(&user_name).await? {
+		let user = self.persistence.get_user_by_name(&user_name).await?;
+		match user {
 			Some(user) => {
 				let parsed_hash = PasswordHash::new(&user.password_hash)?;
 				match password_hash.verify_password(&password_bytes, &parsed_hash) {
 					Ok(_) => {
-						todo!()
+						let token = Self::generate_token()?;
+						let expiration = SystemTime::now() + Duration::new(3_600, 0);
+						let session = Session {
+							token,
+							user_id: user.id,
+							expiration,
+						};
+						self.persistence.add_session(&session).await?;
+						Ok(Some(session.token))
 					},
 					Err(Password) => Ok(None),
 					Err(e) => Err(Box::new(e)),
@@ -58,5 +70,11 @@ where Persistence: RussetPersistenceLayer {
 		};
 		self.persistence.add_user(&user).await?;
 		Ok(())
+	}
+
+	fn generate_token() -> Result<String> {
+		let mut bytes = [0u8; 32];
+		getrandom(&mut bytes)?;
+		Ok(Base32Upper::encode_string(&bytes))
 	}
 }
