@@ -108,12 +108,14 @@ async fn whoami(
 ) -> Html<String> {
 	let session_cookie = cookies.get("session_id");
 	match session_cookie {
-		Some(_session_cookie) => {
-			info!("Authenticated");
-			Html("Authenticated".to_string())
+		Some(session_cookie) => {
+			let user = state.domain_service.auth_user(session_cookie.value()).await.unwrap();
+			match user {
+				Some(user) => Html(format!("Authenticated as {}", user.name)),
+				None => Html("Bad Token".to_string()),
+			}
 		},
 		None => {
-			info!("Unauthenticated");
 			Html("Unauthenticated".to_string())
 		}
 	}

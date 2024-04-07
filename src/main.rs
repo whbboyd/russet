@@ -41,6 +41,7 @@ async fn main() -> Result<()> {
 	let url = reqwest::Url::parse(FEED_URL)?;
 	info!("Setup complete, initializing…");
 	domain_service.add_feed(&url).await?;
+	let _swallowed = domain_service.add_user("admin", "swordfish").await;
 	let app_state = http::AppState { hello: "Hello, state!".to_string(), domain_service: Arc::new(domain_service) };
 	let routes = http::russet_router()
 		.with_state(app_state);

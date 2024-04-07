@@ -48,4 +48,7 @@ pub trait RussetUserPersistenceLayer {
 
 	/// Add the given [Session] to the persistence layer, logging in a user
 	async fn add_session(&self, session: &Session) -> Result<()>;
+
+	/// Given a session token, look up that user and session
+	async fn get_user_by_session(&self, session_token: &str) -> Result<Option<(User, Session)>>;
 }

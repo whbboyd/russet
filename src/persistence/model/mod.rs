@@ -29,7 +29,7 @@ pub struct Entry {
 	pub url: Option<Url>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct UserId(pub Ulid);
 impl Deref for UserId{ type Target = Ulid; fn deref(&self) -> &Self::Target { &self.0 } }
 pub struct User {

@@ -26,7 +26,7 @@ CREATE TABLE users (
 CREATE TABLE sessions (
 	token TEXT NOT NULL PRIMARY KEY,
 	user_id TEXT NOT NULL,
-	expiration TIMESTAMP WITH TIME ZONE NOT NULL,
+	expiration INT NOT NULL,
 	FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
