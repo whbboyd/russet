@@ -15,7 +15,7 @@ use ulid::Ulid;
 impl <'pepper, Persistence> RussetDomainService<Persistence>
 where Persistence: RussetPersistenceLayer + std::fmt::Debug {
 
-	pub async fn login_user(&self, user_name: String, plaintext_password: String) -> Result<Option<String>> {
+	pub async fn login_user(&self, user_name: String, plaintext_password: String) -> Result<Option<Session>> {
 		let password_hash = Argon2::new_with_secret(
 				self.pepper.as_slice(),
 				argon2::Algorithm::Argon2id,
@@ -38,7 +38,7 @@ where Persistence: RussetPersistenceLayer + std::fmt::Debug {
 						};
 						self.persistence.add_session(&session).await?;
 						info!("Successfully logged in {:?} ({:?})", user.name, session);
-						Ok(Some(session.token))
+						Ok(Some(session))
 					},
 					Err(Password) => {
 						info!("Bad password for {:?}", user.name);

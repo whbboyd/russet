@@ -1,12 +1,15 @@
 use axum::extract::{ Form, State };
+use axum::http::StatusCode;
 use axum::Router;
 use axum::routing::{ get, post };
-use axum::response::Html;
+use axum::response::{ Html, Redirect };
+use axum_extra::extract::cookie::{ Cookie, CookieJar };
 use crate::domain::RussetDomainService;
 use crate::persistence::RussetPersistenceLayer;
 use crate::persistence::sql::SqlDatabase;
 use serde::Deserialize;
 use std::sync::Arc;
+use tracing::info;
 
 pub fn russet_router() -> Router<AppState<SqlDatabase>> {
 	Router::new()
@@ -14,6 +17,7 @@ pub fn russet_router() -> Router<AppState<SqlDatabase>> {
 		.route("/list", get(list_entries))
 		.route("/login", get(login_page))
 		.route("/login", post(login_user))
+		.route("/whoami", get(whoami))
 }
 
 #[derive(Debug)]
@@ -79,10 +83,38 @@ impl std::fmt::Debug for LoginRequest {
 			.finish()
 	}
 }
+#[axum_macros::debug_handler]
 #[tracing::instrument]
 async fn login_user(
 	State(state): State<AppState<SqlDatabase>>,
+	cookies: CookieJar,
 	Form(login): Form<LoginRequest>,
-) -> String {
-	state.domain_service.login_user(login.user_name, login.plaintext_password).await.unwrap().unwrap_or("lolno".to_string())
+) -> Result<(CookieJar, Redirect), StatusCode> {
+	let session = state.domain_service.login_user(login.user_name, login.plaintext_password).await;
+	match session {
+		Ok(Some(session)) => Ok((
+			cookies.add(Cookie::new("session_id", session.token)),
+			Redirect::to("/whoami"),
+		)),
+		Ok(None) => Err(StatusCode::UNAUTHORIZED),
+		Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+	}
+}
+
+#[tracing::instrument]
+async fn whoami(
+	State(state): State<AppState<SqlDatabase>>,
+	cookies: CookieJar,
+) -> Html<String> {
+	let session_cookie = cookies.get("session_id");
+	match session_cookie {
+		Some(_session_cookie) => {
+			info!("Authenticated");
+			Html("Authenticated".to_string())
+		},
+		None => {
+			info!("Unauthenticated");
+			Html("Unauthenticated".to_string())
+		}
+	}
 }
