@@ -9,6 +9,7 @@ use crate::persistence::RussetPersistenceLayer;
 use crate::persistence::model::{ Session, User, UserId };
 use getrandom::getrandom;
 use std::time::{ Duration, SystemTime };
+use tracing::info;
 use ulid::Ulid;
 
 impl <'pepper, Persistence> RussetDomainService<Persistence>
@@ -36,9 +37,13 @@ where Persistence: RussetPersistenceLayer + std::fmt::Debug {
 							expiration,
 						};
 						self.persistence.add_session(&session).await?;
+						info!("Successfully logged in {:?} ({:?})", user.name, session);
 						Ok(Some(session.token))
 					},
-					Err(Password) => Ok(None),
+					Err(Password) => {
+						info!("Bad password for {:?}", user.name);
+						Ok(None)
+					},
 					Err(e) => Err(Box::new(e)),
 				}
 			}
@@ -46,6 +51,7 @@ where Persistence: RussetPersistenceLayer + std::fmt::Debug {
 				// Hash the password anyway to resist user enumeration via side channels
 				let parsed_hash = PasswordHash::new("$argon2id$v=19$m=19456,t=2,p=1$DFhnniX1Kn3JoEKD5e9qbQ$IxgxUYNYPTvPTjez280uFJh166f+eNkCXntlVe5NaZQ").unwrap();
 				let _ = password_hash.verify_password(&password_bytes, &parsed_hash);
+				info!("User {:?} not found", user_name);
 				Ok(None)
 			}
 		}

@@ -28,8 +28,7 @@ where Persistence: RussetPersistenceLayer + Send + std::fmt::Debug {
 }
 
 #[tracing::instrument]
-async fn hello<Persistence>(State(state): State<AppState<Persistence>>) -> String
-where Persistence: RussetPersistenceLayer + Send + std::fmt::Debug {
+async fn hello(State(state): State<AppState<SqlDatabase>>) -> String {
 	state.hello
 }
 
@@ -80,12 +79,10 @@ impl std::fmt::Debug for LoginRequest {
 			.finish()
 	}
 }
-#[axum_macros::debug_handler]
 #[tracing::instrument]
 async fn login_user(
 	State(state): State<AppState<SqlDatabase>>,
 	Form(login): Form<LoginRequest>,
 ) -> String {
-	println!("Logging in {:?}", login.user_name);
 	state.domain_service.login_user(login.user_name, login.plaintext_password).await.unwrap().unwrap_or("lolno".to_string())
 }

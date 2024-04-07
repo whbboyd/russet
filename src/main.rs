@@ -18,7 +18,7 @@ use std::sync::Arc;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::filter::LevelFilter;
-use tracing_subscriber::fmt::format::FmtSpan;
+//use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
@@ -58,8 +58,8 @@ fn init_tracing() {
 		.with_default_directive(LevelFilter::INFO.into())
 		.from_env()
 		.unwrap();
-	let subscriber = tracing_subscriber::fmt::layer()
-		.with_span_events(FmtSpan::NEW | FmtSpan::CLOSE);
+	let subscriber = tracing_subscriber::fmt::layer();
+//`		.with_span_events(FmtSpan::NEW | FmtSpan::CLOSE);
 	tracing_subscriber::registry()
 		.with(filter)
 		.with(subscriber)
