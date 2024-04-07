@@ -57,7 +57,7 @@ where Persistence: RussetPersistenceLayer + std::fmt::Debug {
 		}
 	}
 
-	pub async fn add_user(&mut self, user_name: &str, plaintext_password: &str) -> Result<()> {
+	pub async fn add_user(&self, user_name: &str, plaintext_password: &str) -> Result<()> {
 		if let Some(user) = self.persistence.get_user_by_name(&user_name).await? {
 			return Err(format!("User {} ({}) already exists", user.name, user.id.to_string()).into());
 		}
@@ -79,10 +79,9 @@ where Persistence: RussetPersistenceLayer + std::fmt::Debug {
 	}
 
 	pub async fn auth_user(&self, token: &str) -> Result<Option<User>> {
-		if let Some((user, _session)) = self.persistence.get_user_by_session(&token).await? {
-			Ok(Some(user))
-		} else {
-			Ok(None)
+		match self.persistence.get_user_by_session(&token).await? {
+			Some((user, _session)) => Ok(Some(user)),
+			None => Ok(None)
 		}
 	}
 

@@ -4,19 +4,23 @@ use crate::persistence::model::{ Entry, EntryId, Feed, FeedId };
 use crate::persistence::RussetPersistenceLayer;
 use crate::feed::model::Feed as ReaderFeed;
 use reqwest::Url;
+use std::collections::HashSet;
 use ulid::Ulid;
 
 impl <Persistence> RussetDomainService<Persistence>
 where Persistence: RussetPersistenceLayer + std::fmt::Debug {
 
 	/// Update the stored entries for all feeds known to the persistence layer
-	pub async fn update_feeds(&mut self) -> Result<()> {
+	pub async fn update_feeds(&self) -> Result<()> {
 		let fetch_index = self.persistence.get_and_increment_fetch_index().await?;
-		let feeds = self.persistence.get_feeds().await.into_iter().collect::<Vec<Result<Feed>>>();
+		let feeds = self.persistence
+			.get_feeds()
+			.await
+			.into_iter()
+			.filter_map(|feed| feed.ok())
+			.collect::<Vec<Feed>>();
 		for feed in feeds {
-			if let Ok(feed) = feed {
-				self.update_feed(&feed, fetch_index).await?;
-			}
+			self.update_feed(&feed, fetch_index).await?;
 		}
 		Ok(())
 	}
@@ -26,7 +30,7 @@ where Persistence: RussetPersistenceLayer + std::fmt::Debug {
 	/// If a feed with that URL is already stored, its entries will be updated.
 	/// Otherwise, the feed will be downloaded and added to the persistence
 	/// layer.
-	pub async fn add_feed(&mut self, url: &Url) -> Result<()> {
+	pub async fn add_feed(&self, url: &Url) -> Result<()> {
 		match self.persistence.get_feed_by_url(url).await? {
 			Some(feed) => {
 				let fetch_index = self.persistence.get_and_increment_fetch_index().await?;
@@ -56,7 +60,7 @@ where Persistence: RussetPersistenceLayer + std::fmt::Debug {
 	}
 
 	/// Update the persistence layer with [feed] (at fetch [fetch_index])
-	async fn update_feed(&mut self, feed: &Feed, fetch_index: u32) -> Result<()> {
+	async fn update_feed(&self, feed: &Feed, fetch_index: u32) -> Result<()> {
 		let bytes = reqwest::get(feed.url.clone())
 				.await?
 				.bytes()
@@ -68,21 +72,15 @@ where Persistence: RussetPersistenceLayer + std::fmt::Debug {
 
 	/// Given a parsed [reader_feed], update the persistence layer for [feed]
 	/// with the entries from it
-	async fn update_with_entries(&mut self, feed: &Feed, reader_feed: &ReaderFeed, fetch_index: u32) -> Result<()> {
-		let storage_entries = self.persistence
+	async fn update_with_entries(&self, feed: &Feed, reader_feed: &ReaderFeed, fetch_index: u32) -> Result<()> {
+		let known_internal_ids = self.persistence
 			.get_entries_for_feed(&feed.id)
 			.await
 			.into_iter()
-			.collect::<Vec<Result<Entry>>>();
+			.filter_map(|entry| entry.ok().map(|entry| entry.internal_id) )
+			.collect::<HashSet<String>>();
 		let new_entries = reader_feed.entries.as_slice().into_iter()
-			.filter(|entry| {
-				for s in storage_entries.as_slice() {
-					if s.as_ref().map(|e| e.internal_id == entry.internal_id).unwrap_or(false) {
-						return false
-					}
-				};
-				true
-			} )
+			.filter(|entry| !known_internal_ids.contains(&entry.internal_id) )
 			.map (|entry| {
 				Entry {
 					id: EntryId(Ulid::new()),

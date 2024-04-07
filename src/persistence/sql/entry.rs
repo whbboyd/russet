@@ -9,7 +9,7 @@ use ulid::Ulid;
 impl RussetEntryPersistenceLayer for SqlDatabase {
 
 	#[tracing::instrument]
-	async fn add_entry(&mut self, entry: &Entry, feed_id: &FeedId) -> Result<()> {
+	async fn add_entry(&self, entry: &Entry, feed_id: &FeedId) -> Result<()> {
 		let entry_id = entry.id.to_string();
 		let feed_id = feed_id.to_string();
 		let article_date: i64 = entry.article_date.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis().try_into().unwrap();
@@ -96,7 +96,7 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 	}
 
 	#[tracing::instrument]
-	async fn get_and_increment_fetch_index(&mut self) -> Result<u32> {
+	async fn get_and_increment_fetch_index(&self) -> Result<u32> {
 		let row = sqlx::query!("
 				UPDATE metadata
 				SET fetch_index = fetch_index + 1

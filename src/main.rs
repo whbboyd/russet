@@ -15,7 +15,8 @@ use persistence::sql::SqlDatabase;
 use std::error::Error;
 use std::path::Path;
 use std::sync::Arc;
-use tracing::info;
+use std::time::Duration;
+use tracing::{ error, info };
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::filter::LevelFilter;
 //use tracing_subscriber::fmt::format::FmtSpan;
@@ -37,12 +38,27 @@ async fn main() -> Result<()> {
 	info!("Starting Russet…");
 	let db = SqlDatabase::new(Path::new(DB_FILE)).await?;
 	let reader = Box::new(AtomFeedReader::new());
-	let mut domain_service = RussetDomainService::new(db, vec![reader], PEPPER.as_bytes().to_vec())?;
-	let url = reqwest::Url::parse(FEED_URL)?;
+	let domain_service = Arc::new(RussetDomainService::new(db, vec![reader], PEPPER.as_bytes().to_vec())?);
+
 	info!("Setup complete, initializing…");
-	domain_service.add_feed(&url).await?;
+	// TODO: Initialize with feed and hard-coded user
+	domain_service.add_feed(&reqwest::Url::parse(FEED_URL)?).await?;
 	let _swallowed = domain_service.add_user("admin", "swordfish").await;
-	let app_state = http::AppState { hello: "Hello, state!".to_string(), domain_service: Arc::new(domain_service) };
+
+	// Start the feed update coroutine
+	let update_service = domain_service.clone();
+	tokio::spawn(async move {
+		loop {
+			info!("Updating feeds");
+			if let Err(err) = update_service.update_feeds().await {
+				error!("Error updating feeds: {}", err);
+			}
+			tokio::time::sleep(Duration::from_secs(/*FIXME*/30)).await;
+		}
+	} );
+
+	// Setup for Axum
+	let app_state = http::AppState { hello: "Hello, state!".to_string(), domain_service: domain_service.clone() };
 	let routes = http::russet_router()
 		.with_state(app_state);
 	let listener = tokio::net::TcpListener::bind(LISTEN).await?;
@@ -52,7 +68,6 @@ async fn main() -> Result<()> {
 	info!("Exiting Russet…");
 	Ok(())
 }
-
 
 fn init_tracing() {
 	let filter = EnvFilter::builder()

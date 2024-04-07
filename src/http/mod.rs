@@ -9,15 +9,17 @@ use crate::persistence::RussetPersistenceLayer;
 use crate::persistence::sql::SqlDatabase;
 use serde::Deserialize;
 use std::sync::Arc;
-use tracing::info;
+use session::AuthenticatedUser;
+
+mod session;
 
 pub fn russet_router() -> Router<AppState<SqlDatabase>> {
 	Router::new()
-		.route("/hello", get(hello))
 		.route("/list", get(list_entries))
+		.route("/whoami", get(whoami))
+		.route("/hello", get(hello))
 		.route("/login", get(login_page))
 		.route("/login", post(login_user))
-		.route("/whoami", get(whoami))
 }
 
 #[derive(Debug)]
@@ -37,9 +39,12 @@ async fn hello(State(state): State<AppState<SqlDatabase>>) -> String {
 }
 
 #[tracing::instrument]
-async fn list_entries(State(state): State<AppState<SqlDatabase>>) -> String {
+async fn list_entries(
+	State(state): State<AppState<SqlDatabase>>,
+	user: AuthenticatedUser<SqlDatabase>,
+) -> Html<String> {
 	let feeds = state.domain_service.get_feeds().await;
-	format!("{:?}", feeds)
+	Html(format!("<pre>{:#?}</pre>", feeds))
 }
 
 #[tracing::instrument]
@@ -104,19 +109,7 @@ async fn login_user(
 #[tracing::instrument]
 async fn whoami(
 	State(state): State<AppState<SqlDatabase>>,
-	cookies: CookieJar,
+	AuthenticatedUser { user, .. }: AuthenticatedUser<SqlDatabase>,
 ) -> Html<String> {
-	let session_cookie = cookies.get("session_id");
-	match session_cookie {
-		Some(session_cookie) => {
-			let user = state.domain_service.auth_user(session_cookie.value()).await.unwrap();
-			match user {
-				Some(user) => Html(format!("Authenticated as {}", user.name)),
-				None => Html("Bad Token".to_string()),
-			}
-		},
-		None => {
-			Html("Unauthenticated".to_string())
-		}
-	}
+	Html(format!("Authenticated as {}", user.name))
 }

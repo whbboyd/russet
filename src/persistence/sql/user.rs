@@ -8,7 +8,7 @@ use ulid::Ulid;
 impl RussetUserPersistenceLayer for SqlDatabase {
 
 	#[tracing::instrument]
-	async fn add_user(&mut self, user: &User) -> Result<()> {
+	async fn add_user(&self, user: &User) -> Result<()> {
 		let user_id = user.id.to_string();
 		sqlx::query!("
 				INSERT INTO users (

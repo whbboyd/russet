@@ -8,7 +8,7 @@ use ulid::Ulid;
 impl RussetFeedPersistenceLayer for SqlDatabase {
 
 	#[tracing::instrument]
-	async fn add_feed(&mut self, feed: &Feed) -> Result<()> {
+	async fn add_feed(&self, feed: &Feed) -> Result<()> {
 		let feed_id = feed.id.to_string();
 		let feed_url = feed.url.to_string();
 		sqlx::query!("
