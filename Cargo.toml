@@ -13,6 +13,7 @@ base32ct = { version = "0.2", features = ["std", "alloc"] }
 getrandom = { version = "0.2", features = ["std"] }
 reqwest = "0.11"
 rss = "2.0"
+sailfish = "0.8"
 serde = "1.0"
 sqlx = { version = "0.7", features = ["sqlite", "migrate", "runtime-tokio-native-tls"] }
 tokio = { version = "1.36", features = ["full"] }

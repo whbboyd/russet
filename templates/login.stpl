@@ -1,0 +1,22 @@
+<!DOCTYPE HTML>
+<html lang="en">
+	<head>
+		<title>Russet - Log In</title>
+		<link rel="stylesheet" href="/styles.css" />
+	</head>
+	<body>
+		<form action="/login" method="post">
+			<div>
+				<label for="user_name">User name: </label>
+				<input type="text" name="user_name" />
+			</div>
+			<div>
+				<label for="plaintext_password">Password: </label>
+				<input type="password" name="plaintext_password" />
+			</div>
+			<div>
+				<input type="submit" value = "Log in" />
+			</div>
+		</form>
+	</body>
+</html>
