@@ -9,18 +9,18 @@ use crate::persistence::RussetPersistenceLayer;
 use crate::persistence::sql::SqlDatabase;
 use serde::Deserialize;
 use std::sync::Arc;
-use sailfish::TemplateOnce;
 use session::AuthenticatedUser;
 
 mod session;
+mod static_routes;
 
 pub fn russet_router() -> Router<AppState<SqlDatabase>> {
 	Router::new()
-		.route("/styles.css", get(styles))
+		.route("/styles.css", get(static_routes::styles))
 		.route("/list", get(list_entries))
 		.route("/whoami", get(whoami))
 		.route("/hello", get(hello))
-		.route("/login", get(login_page))
+		.route("/login", get(static_routes::login_page))
 		.route("/login", post(login_user))
 }
 
@@ -47,16 +47,6 @@ async fn list_entries(
 ) -> Html<String> {
 	let feeds = state.domain_service.get_feeds().await;
 	Html(format!("<pre>{:#?}</pre>", feeds))
-}
-
-#[derive(TemplateOnce)]
-#[template(path = "login.stpl")]
-struct LoginPage { }
-#[tracing::instrument]
-async fn login_page(
-	State(_state): State<AppState<SqlDatabase>>,
-) -> Html<String> {
-	Html(LoginPage{}.render_once().unwrap())
 }
 
 #[derive(Deserialize, Clone)]
@@ -98,8 +88,3 @@ async fn whoami(
 	Html(format!("Authenticated as {}", user.name))
 }
 
-// TODO: This is not working right for some reason (maybe Content-Type?)
-#[tracing::instrument]
-async fn styles() -> &'static str {
-	include_str!("static/styles.css")
-}
