@@ -1,27 +1,26 @@
-use axum::extract::{ Form, State };
-use axum::http::StatusCode;
+use axum::extract::State;
 use axum::Router;
-use axum::routing::{ get, post };
+use axum::routing::{ any, get, post };
 use axum::response::{ Html, Redirect };
-use axum_extra::extract::cookie::{ Cookie, CookieJar };
 use crate::domain::RussetDomainService;
 use crate::persistence::RussetPersistenceLayer;
 use crate::persistence::sql::SqlDatabase;
-use serde::Deserialize;
 use std::sync::Arc;
 use session::AuthenticatedUser;
 
 mod session;
 mod static_routes;
+mod login;
 
 pub fn russet_router() -> Router<AppState<SqlDatabase>> {
 	Router::new()
 		.route("/styles.css", get(static_routes::styles))
-		.route("/list", get(list_entries))
+		.route("/login", get(login::login_page))
+		.route("/login", post(login::login_user))
 		.route("/whoami", get(whoami))
-		.route("/hello", get(hello))
-		.route("/login", get(static_routes::login_page))
-		.route("/login", post(login_user))
+		.route("/", get(|| async { "User home page!" }))
+		.route("/entry/:id", get(|| async { "Entry page!" }))
+		.route("/*any", any(|| async { Redirect::to("/") }))
 }
 
 #[derive(Debug)]
@@ -36,48 +35,12 @@ where Persistence: RussetPersistenceLayer + Send + std::fmt::Debug {
 }
 
 #[tracing::instrument]
-async fn hello(State(state): State<AppState<SqlDatabase>>) -> String {
-	state.hello
-}
-
-#[tracing::instrument]
 async fn list_entries(
 	State(state): State<AppState<SqlDatabase>>,
 	user: AuthenticatedUser<SqlDatabase>,
 ) -> Html<String> {
 	let feeds = state.domain_service.get_feeds().await;
 	Html(format!("<pre>{:#?}</pre>", feeds))
-}
-
-#[derive(Deserialize, Clone)]
-struct LoginRequest {
-	user_name: String,
-	plaintext_password: String,
-}
-impl std::fmt::Debug for LoginRequest {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		f.debug_struct("LoginRequest")
-			.field("user_name", &self.user_name)
-			.field("plaintext_password", &"<redacted>")
-			.finish()
-	}
-}
-#[axum_macros::debug_handler]
-#[tracing::instrument]
-async fn login_user(
-	State(state): State<AppState<SqlDatabase>>,
-	cookies: CookieJar,
-	Form(login): Form<LoginRequest>,
-) -> Result<(CookieJar, Redirect), StatusCode> {
-	let session = state.domain_service.login_user(login.user_name, login.plaintext_password).await;
-	match session {
-		Ok(Some(session)) => Ok((
-			cookies.add(Cookie::new("session_id", session.token)),
-			Redirect::to("/whoami"),
-		)),
-		Ok(None) => Err(StatusCode::UNAUTHORIZED),
-		Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-	}
 }
 
 #[tracing::instrument]
