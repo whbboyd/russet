@@ -7,14 +7,17 @@ use crate::persistence::sql::SqlDatabase;
 use sailfish::TemplateOnce;
 use serde::Deserialize;
 
-#[derive(TemplateOnce)]
+#[derive(Clone, Debug, Deserialize, TemplateOnce)]
 #[template(path = "static/login.stpl")]
-struct LoginPage { }
+pub struct LoginPage {
+	redirect_to: Option<String>,
+}
 #[tracing::instrument]
 pub async fn login_page(
 	State(_state): State<AppState<SqlDatabase>>,
+	Form(login): Form<LoginPage>,
 ) -> Html<String> {
-	Html(LoginPage{}.render_once().unwrap())
+	Html(LoginPage{ redirect_to: login.redirect_to }.render_once().unwrap())
 }
 
 #[derive(Deserialize, Clone)]
