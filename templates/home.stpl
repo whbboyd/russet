@@ -1,0 +1,15 @@
+<!DOCTYPE HTML>
+<html lang="en">
+	<head>
+		<title>Russet - Home</title>
+		<meta charset="utf-8" />
+		<link rel="stylesheet" href="/styles.css" />
+	</head>
+	<body>
+		<p>User: <%= user.name %></p>
+		<h1>Entries:</h1>
+		<ul>
+			<% for entry in entries { %><li><a href="<%= entry.url.as_ref().unwrap().to_string() %>"><%= entry.title %></a></li> <% } %>
+		</ul>
+	</body>
+</html>

@@ -58,7 +58,7 @@ async fn main() -> Result<()> {
 	} );
 
 	// Setup for Axum
-	let app_state = http::AppState { hello: "Hello, state!".to_string(), domain_service: domain_service.clone() };
+	let app_state = http::AppState { domain_service: domain_service.clone() };
 	let routes = http::russet_router()
 		.with_state(app_state);
 	let listener = tokio::net::TcpListener::bind(LISTEN).await?;

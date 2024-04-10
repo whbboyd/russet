@@ -8,7 +8,7 @@ use sailfish::TemplateOnce;
 use serde::Deserialize;
 
 #[derive(Clone, Debug, Deserialize, TemplateOnce)]
-#[template(path = "static/login.stpl")]
+#[template(path = "login.stpl")]
 pub struct LoginPage {
 	redirect_to: Option<String>,
 }
@@ -35,7 +35,6 @@ impl std::fmt::Debug for LoginRequest {
 			.finish()
 	}
 }
-#[axum_macros::debug_handler]
 #[tracing::instrument]
 pub async fn login_user(
 	State(state): State<AppState<SqlDatabase>>,

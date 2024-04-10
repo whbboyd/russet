@@ -3,22 +3,22 @@ use std::ops::Deref;
 use std::time::SystemTime;
 use ulid::Ulid;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct FeedId(pub Ulid);
 impl Deref for FeedId { type Target = Ulid; fn deref(&self) -> &Self::Target { &self.0 } }
 /// Metadata for a feed, e.g. title and feed URL
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Feed {
 	pub id: FeedId,
 	pub title: String,
 	pub url: Url,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct EntryId(pub Ulid);
 impl Deref for EntryId{ type Target = Ulid; fn deref(&self) -> &Self::Target { &self.0 } }
 /// Individual entry from a given feed
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Entry {
 	pub id: EntryId,
 	pub feed_id: FeedId,
@@ -32,6 +32,7 @@ pub struct Entry {
 #[derive(Clone, Debug)]
 pub struct UserId(pub Ulid);
 impl Deref for UserId{ type Target = Ulid; fn deref(&self) -> &Self::Target { &self.0 } }
+#[derive(Clone)]
 pub struct User {
 	pub id: UserId,
 	pub name: String,
@@ -47,6 +48,7 @@ impl std::fmt::Debug for User {
 	}
 }
 
+#[derive(Clone)]
 pub struct Session {
 	pub token: String,
 	pub user_id: UserId,
