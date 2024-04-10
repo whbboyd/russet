@@ -25,8 +25,7 @@ impl RussetFeedPersistenceLayer for SqlDatabase {
 	}
 
 	#[tracing::instrument]
-	// TODO: this type signature is totally unacceptable
-	async fn get_feeds(&self) -> impl IntoIterator<Item = Result<Feed>, IntoIter = std::vec::IntoIter<Result<Feed>>> {
+	async fn get_feeds(&self) -> Vec<Result<Feed>> {
 		// TODO: Maybe do paging later. Or figure out how to stream from sqlx.
 		let rows = sqlx::query!("
 				SELECT

@@ -17,7 +17,7 @@ pub trait RussetFeedPersistenceLayer {
 	async fn add_feed(&self, feed: &Feed) -> Result<()>;
 
 	/// Get all the [Feed]s stored by this persistence layer
-	async fn get_feeds(&self) -> impl IntoIterator<Item = Result<Feed>>;
+	async fn get_feeds(&self) -> impl IntoIterator<Item = Result<Feed>, IntoIter = impl Iterator + Send>;
 
 	/// Get a specific [Feed] by ID
 	async fn get_feed(&self, id: &FeedId) -> Result<Feed>;
