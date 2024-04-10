@@ -6,18 +6,18 @@ use crate::persistence::sql::SqlDatabase;
 use crate::Result;
 
 impl RussetDomainService<SqlDatabase> {
-	pub async fn get_entries(&self) -> Vec<Result<Entry>> {
-		// FIXME Everything about this is horrifying.
+	pub async fn get_entries(&self) -> impl IntoIterator<Item = Result<Entry>> {
 		let mut acc = Vec::new();
-		let feeds = self.persistence.get_feeds().await.into_iter().filter_map(|feed| feed.ok()).collect::<Vec<Feed>>();
-		for feed in feeds {
-			let entries = self.persistence
-				.get_entries_for_feed(&feed.id)
-				.await
-				.into_iter()
-				.filter_map(|entry| entry.ok());
-			acc.extend(entries);
+		for feed in self.persistence.get_feeds().await {
+			match feed {
+				Ok(Feed { id, .. }) => acc.extend(
+					self.persistence
+						.get_entries_for_feed(&id)
+						.await
+				),
+				Err(e) => acc.push(Err(e))
+			}
 		}
-		acc.into_iter().map(|entry| Ok(entry)).collect()
+		acc
 	}
 }

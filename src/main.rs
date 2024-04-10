@@ -29,7 +29,7 @@ static DB_FILE: &str = "/tmp/russet-db.sqlite";
 static PEPPER: &str = "IzvoEPMQIi82NSXTz7cZ";
 static LISTEN: &str = "127.0.0.1:9892";
 
-pub type Err = Box<dyn Error>;
+pub type Err = Box<dyn Error + Send + Sync + 'static>;
 pub type Result<T> = std::result::Result<T, Err>;
 
 #[tokio::main]
