@@ -1,4 +1,4 @@
-use crate::persistence::model::{ Session, User, UserId };
+use crate::persistence::model::{ FeedId, Session, SessionToken, User, UserId };
 use crate::persistence::RussetUserPersistenceLayer;
 use crate::persistence::sql::SqlDatabase;
 use crate::Result;
@@ -55,7 +55,7 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 				INSERT INTO sessions (
 					token, user_id, expiration
 				) VALUES ( ?, ?, ? )",
-				session.token,
+				session.token.0,
 				user_id,
 				expiration,
 			)
@@ -88,7 +88,7 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 						password_hash: row.password_hash,
 					},
 					Session {
-						token: session_token.to_string(),
+						token: SessionToken(session_token.to_string()),
 						user_id,
 						expiration,
 					}
@@ -97,5 +97,54 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 			Err(sqlx::Error::RowNotFound) => Ok(None),
 			Err(e) => Err(Box::new(e)),
 		}
+	}
+
+	#[tracing::instrument]
+	async fn delete_session(&self, session_token: &str) -> Result<()> {
+		let rows = sqlx::query!("
+				DELETE FROM sessions
+				WHERE token = ?",
+				session_token,
+			)
+			.execute(&self.pool)
+			.await?
+			.rows_affected();
+		if rows != 1 {
+			Err(format!("Deleted {} (not 1) sessions with token {:?}", rows, session_token).into())
+		} else {
+			Ok(())
+		}
+	}
+
+	#[tracing::instrument]
+	async fn delete_sessions_for_user(&self, user_id: &UserId) -> Result<u32> {
+		let user_id = user_id.to_string();
+		let rows = sqlx::query!("
+				DELETE FROM sessions
+				WHERE user_id = ?",
+				user_id,
+			)
+			.execute(&self.pool)
+			.await?
+			.rows_affected()
+			.try_into()
+			.unwrap();
+		Ok(rows)
+	}
+
+	#[tracing::instrument]
+	async fn add_subscription(&self, user_id: &UserId, feed_id: &FeedId) -> Result<()> {
+		let feed_id = feed_id.to_string();
+		let user_id = user_id.to_string();
+		sqlx::query!("
+				INSERT INTO subscriptions(
+					user_id, feed_id
+				) VALUES ( ?, ? )",
+				user_id,
+				feed_id,
+			)
+			.execute(&self.pool)
+			.await?;
+		Ok(())
 	}
 }

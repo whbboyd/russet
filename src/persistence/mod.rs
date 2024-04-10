@@ -2,7 +2,7 @@ pub mod model;
 pub mod sql;
 
 use crate::Result;
-use model::{ Entry, EntryId, Feed, FeedId, Session, User };
+use model::{ Entry, EntryId, Feed, FeedId, Session, User, UserId };
 use reqwest::Url;
 use std::future::Future;
 
@@ -17,7 +17,7 @@ pub trait RussetFeedPersistenceLayer {
 	async fn add_feed(&self, feed: &Feed) -> Result<()>;
 
 	/// Get all the [Feed]s stored by this persistence layer
-	async fn get_feeds(&self) -> impl IntoIterator<Item = Result<Feed>, IntoIter = impl Iterator + Send>;
+	async fn get_feeds(&self) -> impl IntoIterator<Item = Result<Feed>, IntoIter = impl Iterator<Item = Result<Feed>> + Send>;
 
 	/// Get a specific [Feed] by ID
 	async fn get_feed(&self, id: &FeedId) -> Result<Feed>;
@@ -53,4 +53,10 @@ pub trait RussetUserPersistenceLayer {
 	/// Given a session token, look up that user and session
 //	async fn get_user_by_session(&self, session_token: &str) -> Result<Option<(User, Session)>>;
 	fn get_user_by_session(&self, session_token: &str) -> impl Future<Output = Result<Option<(User, Session)>>> + Send;
+
+	async fn delete_session(&self, session_token: &str) -> Result<()>;
+
+	async fn delete_sessions_for_user(&self, user_id: &UserId) -> Result<u32>;
+
+	async fn add_subscription(&self, user_id: &UserId, feed_id: &FeedId) -> Result<()>;
 }

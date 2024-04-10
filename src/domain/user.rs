@@ -2,11 +2,11 @@ use argon2::{ Argon2, PasswordHash, PasswordHasher, PasswordVerifier };
 use argon2::password_hash::Error::Password;
 use argon2::password_hash::SaltString;
 use argon2::password_hash::rand_core::OsRng;
-use base32ct::{ Base32Upper, Encoding };
+use base32ct::{ Base32Unpadded, Encoding };
 use crate::domain::RussetDomainService;
 use crate::Result;
 use crate::persistence::RussetPersistenceLayer;
-use crate::persistence::model::{ Session, User, UserId };
+use crate::persistence::model::{ Session, SessionToken, User, UserId };
 use getrandom::getrandom;
 use std::time::{ Duration, SystemTime };
 use tracing::info;
@@ -85,9 +85,9 @@ where Persistence: RussetPersistenceLayer + std::fmt::Debug {
 		}
 	}
 
-	fn generate_token() -> Result<String> {
+	fn generate_token() -> Result<SessionToken> {
 		let mut bytes = [0u8; 32];
 		getrandom(&mut bytes)?;
-		Ok(Base32Upper::encode_string(&bytes))
+		Ok(SessionToken(Base32Unpadded::encode_string(&bytes)))
 	}
 }

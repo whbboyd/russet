@@ -49,15 +49,22 @@ impl std::fmt::Debug for User {
 }
 
 #[derive(Clone)]
+pub struct SessionToken(pub String);
+impl std::fmt::Debug for SessionToken {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("\"{}<redacted>\"", &self.0[..4]))
+	}
+}
+#[derive(Clone)]
 pub struct Session {
-	pub token: String,
+	pub token: SessionToken,
 	pub user_id: UserId,
 	pub expiration: SystemTime,
 }
 impl std::fmt::Debug for Session {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("Session")
-			.field("token", &format!("{}<redacted>", &self.token[..4]))
+			.field("token", &self.token)
 			.field("user_id", &self.user_id.to_string())
 			.field("expiration", &self.expiration)
 			.finish()

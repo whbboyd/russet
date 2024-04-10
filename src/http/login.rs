@@ -44,7 +44,7 @@ pub async fn login_user(
 	let session = state.domain_service.login_user(login.user_name, login.plaintext_password).await;
 	match session {
 		Ok(Some(session)) => Ok((
-			cookies.add(Cookie::new("session_id", session.token)),
+			cookies.add(Cookie::new("session_id", session.token.0)),
 			Redirect::to(&login.redirect_to.unwrap_or("/".to_string())),
 		)),
 		Ok(None) => Err(StatusCode::UNAUTHORIZED),
