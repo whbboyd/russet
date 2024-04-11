@@ -3,7 +3,7 @@ use axum_extra::extract::cookie::{ Cookie, CookieJar };
 use axum::http::StatusCode;
 use axum::response::{ Html, Redirect };
 use crate::http::AppState;
-use crate::persistence::sql::SqlDatabase;
+use crate::persistence::RussetPersistenceLayer;
 use sailfish::TemplateOnce;
 use serde::Deserialize;
 
@@ -13,10 +13,11 @@ pub struct LoginPage {
 	redirect_to: Option<String>,
 }
 #[tracing::instrument]
-pub async fn login_page(
-	State(_state): State<AppState<SqlDatabase>>,
+pub async fn login_page<Persistence>(
+	State(_state): State<AppState<Persistence>>,
 	Form(login): Form<LoginPage>,
-) -> Html<String> {
+) -> Html<String>
+where Persistence: RussetPersistenceLayer {
 	Html(LoginPage{ redirect_to: login.redirect_to }.render_once().unwrap())
 }
 
@@ -36,11 +37,12 @@ impl std::fmt::Debug for LoginRequest {
 	}
 }
 #[tracing::instrument]
-pub async fn login_user(
-	State(state): State<AppState<SqlDatabase>>,
+pub async fn login_user<Persistence>(
+	State(state): State<AppState<Persistence>>,
 	cookies: CookieJar,
 	Form(login): Form<LoginRequest>,
-) -> Result<(CookieJar, Redirect), StatusCode> {
+) -> Result<(CookieJar, Redirect), StatusCode>
+where Persistence: RussetPersistenceLayer {
 	let session = state.domain_service.login_user(login.user_name, login.plaintext_password).await;
 	match session {
 		Ok(Some(session)) => Ok((

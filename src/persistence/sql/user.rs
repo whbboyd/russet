@@ -1,4 +1,4 @@
-use crate::persistence::model::{ FeedId, Session, SessionToken, User, UserId };
+use crate::persistence::model::{ FeedId, PasswordHash, Session, SessionToken, User, UserId };
 use crate::persistence::RussetUserPersistenceLayer;
 use crate::persistence::sql::SqlDatabase;
 use crate::Result;
@@ -10,13 +10,14 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 	#[tracing::instrument]
 	async fn add_user(&self, user: &User) -> Result<()> {
 		let user_id = user.id.to_string();
+		let password_hash = &user.password_hash.0;
 		sqlx::query!("
 				INSERT INTO users (
 					id, name, password_hash
 				) VALUES ( ?, ?, ? )",
 				user_id,
 				user.name,
-				user.password_hash,
+				password_hash,
 			)
 			.execute(&self.pool)
 			.await?;
@@ -36,10 +37,11 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 		match row_result {
 			Ok(row) => {
 				let id = UserId(Ulid::from_string(&row.id)?);
+				let password_hash = PasswordHash(row.password_hash);
 				Ok(Some(User {
 					id,
 					name: row.name,
-					password_hash: row.password_hash
+					password_hash,
 				} ) )
 			},
 			Err(sqlx::Error::RowNotFound) => Ok(None),
@@ -81,11 +83,12 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 			Ok(row) => {
 				let user_id = UserId(Ulid::from_string(&row.id)?);
 				let expiration = SystemTime::UNIX_EPOCH + Duration::from_millis(row.expiration.try_into().unwrap()); //FIXME
+				let password_hash = PasswordHash(row.password_hash);
 				Ok(Some((
 					User {
 						id: user_id.clone(),
 						name: row.name,
-						password_hash: row.password_hash,
+						password_hash,
 					},
 					Session {
 						token: SessionToken(session_token.to_string()),

@@ -3,3 +3,15 @@ body {
 	color: #bbb;
 	background: #222;
 }
+
+a {
+	color: #4f4;
+	text-decoration: none;
+}
+a:visited {
+	color: #696;
+}
+a:hover {
+	color: #fff;
+	text-decoration: underline;
+}

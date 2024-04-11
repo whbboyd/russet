@@ -8,7 +8,7 @@ use std::collections::HashSet;
 use ulid::Ulid;
 
 impl <Persistence> RussetDomainService<Persistence>
-where Persistence: RussetPersistenceLayer + std::fmt::Debug {
+where Persistence: RussetPersistenceLayer {
 
 	/// Update the stored entries for all feeds known to the persistence layer
 	pub async fn update_feeds(&self) -> Result<()> {
@@ -30,11 +30,12 @@ where Persistence: RussetPersistenceLayer + std::fmt::Debug {
 	/// If a feed with that URL is already stored, its entries will be updated.
 	/// Otherwise, the feed will be downloaded and added to the persistence
 	/// layer.
-	pub async fn add_feed(&self, url: &Url) -> Result<()> {
+	pub async fn add_feed(&self, url: &Url) -> Result<FeedId> {
 		match self.persistence.get_feed_by_url(url).await? {
 			Some(feed) => {
 				let fetch_index = self.persistence.get_and_increment_fetch_index().await?;
-				self.update_feed(&feed, fetch_index).await
+				self.update_feed(&feed, fetch_index).await?;
+				Ok(feed.id)
 			}
 			None => {
 				let bytes = reqwest::get(url.clone())
@@ -49,15 +50,13 @@ where Persistence: RussetPersistenceLayer + std::fmt::Debug {
 				};
 				self.persistence.add_feed(&feed).await?;
 				let fetch_index = self.persistence.get_and_increment_fetch_index().await?;
-				self.update_with_entries(&feed, &reader_feed, fetch_index).await
+				self.update_with_entries(&feed, &reader_feed, fetch_index).await?;
+				Ok(feed.id)
 			}
 		}
 	}
 
-	// TODO: Ultimately this will be by-user
-	pub async fn get_feeds(&self) -> Vec<Result<Feed>> {
-		self.persistence.get_feeds().await.into_iter().collect()
-	}
+	
 
 	/// Update the persistence layer with [feed] (at fetch [fetch_index])
 	async fn update_feed(&self, feed: &Feed, fetch_index: u32) -> Result<()> {

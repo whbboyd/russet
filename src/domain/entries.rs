@@ -1,23 +1,11 @@
 use crate::domain::RussetDomainService;
-use crate::persistence::model::{ Entry, Feed };
-use crate::persistence::RussetEntryPersistenceLayer;
-use crate::persistence::RussetFeedPersistenceLayer;
-use crate::persistence::sql::SqlDatabase;
+use crate::persistence::model::{ Entry, UserId };
+use crate::persistence::RussetPersistenceLayer;
 use crate::Result;
 
-impl RussetDomainService<SqlDatabase> {
-	pub async fn get_entries(&self) -> impl IntoIterator<Item = Result<Entry>> {
-		let mut acc = Vec::new();
-		for feed in self.persistence.get_feeds().await {
-			match feed {
-				Ok(Feed { id, .. }) => acc.extend(
-					self.persistence
-						.get_entries_for_feed(&id)
-						.await
-				),
-				Err(e) => acc.push(Err(e))
-			}
-		}
-		acc
+impl <Persistence> RussetDomainService<Persistence>
+where Persistence: RussetPersistenceLayer {
+	pub async fn get_subscribed_entries(&self, user_id: &UserId) -> impl IntoIterator<Item = Result<Entry>> {
+		self.persistence.get_entries_for_user(user_id).await.into_iter().collect::<Vec<Result<Entry>>>()
 	}
 }

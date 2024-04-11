@@ -1,4 +1,4 @@
-use argon2::{ Argon2, PasswordHash, PasswordHasher, PasswordVerifier };
+use argon2::{ Argon2, PasswordHasher, PasswordVerifier };
 use argon2::password_hash::Error::Password;
 use argon2::password_hash::SaltString;
 use argon2::password_hash::rand_core::OsRng;
@@ -6,14 +6,14 @@ use base32ct::{ Base32Unpadded, Encoding };
 use crate::domain::RussetDomainService;
 use crate::Result;
 use crate::persistence::RussetPersistenceLayer;
-use crate::persistence::model::{ Session, SessionToken, User, UserId };
+use crate::persistence::model::{ FeedId, PasswordHash, Session, SessionToken, User, UserId };
 use getrandom::getrandom;
 use std::time::{ Duration, SystemTime };
 use tracing::info;
 use ulid::Ulid;
 
 impl <'pepper, Persistence> RussetDomainService<Persistence>
-where Persistence: RussetPersistenceLayer + std::fmt::Debug {
+where Persistence: RussetPersistenceLayer {
 
 	pub async fn login_user(&self, user_name: String, plaintext_password: String) -> Result<Option<Session>> {
 		let password_hash = Argon2::new_with_secret(
@@ -26,7 +26,7 @@ where Persistence: RussetPersistenceLayer + std::fmt::Debug {
 		let user = self.persistence.get_user_by_name(&user_name).await?;
 		match user {
 			Some(user) => {
-				let parsed_hash = PasswordHash::new(&user.password_hash)?;
+				let parsed_hash = argon2::PasswordHash::new(&user.password_hash.0)?;
 				match password_hash.verify_password(&password_bytes, &parsed_hash) {
 					Ok(_) => {
 						let token = Self::generate_token()?;
@@ -49,7 +49,7 @@ where Persistence: RussetPersistenceLayer + std::fmt::Debug {
 			}
 			None => {
 				// Hash the password anyway to resist user enumeration via side channels
-				let parsed_hash = PasswordHash::new("$argon2id$v=19$m=19456,t=2,p=1$DFhnniX1Kn3JoEKD5e9qbQ$IxgxUYNYPTvPTjez280uFJh166f+eNkCXntlVe5NaZQ").unwrap();
+				let parsed_hash = argon2::PasswordHash::new("$argon2id$v=19$m=19456,t=2,p=1$DFhnniX1Kn3JoEKD5e9qbQ$IxgxUYNYPTvPTjez280uFJh166f+eNkCXntlVe5NaZQ").unwrap();
 				let _ = password_hash.verify_password(&password_bytes, &parsed_hash);
 				info!("User {:?} not found", user_name);
 				Ok(None)
@@ -61,14 +61,18 @@ where Persistence: RussetPersistenceLayer + std::fmt::Debug {
 		if let Some(user) = self.persistence.get_user_by_name(&user_name).await? {
 			return Err(format!("User {} ({}) already exists", user.name, user.id.to_string()).into());
 		}
-		let password_hash = Argon2::new_with_secret(
+		let password_hasher = Argon2::new_with_secret(
 				self.pepper.as_slice(),
 				argon2::Algorithm::Argon2id,
 				argon2::Version::V0x13,
 				argon2::Params::DEFAULT,
 			)?;
 		let salt = SaltString::generate(&mut OsRng);
-		let password_hash = password_hash.hash_password(plaintext_password.as_bytes(), &salt)?.to_string();
+		let password_hash = PasswordHash(
+			password_hasher
+				.hash_password(plaintext_password.as_bytes(), &salt)?
+				.to_string()
+		);
 		let user = User {
 			id: UserId(Ulid::new()),
 			name: user_name.to_string(),
@@ -83,6 +87,10 @@ where Persistence: RussetPersistenceLayer + std::fmt::Debug {
 			Some((user, _session)) => Ok(Some(user)),
 			None => Ok(None)
 		}
+	}
+
+	pub async fn subscribe(&self, user_id: &UserId, feed_id: &FeedId) -> Result<()> {
+		self.persistence.add_subscription(user_id, feed_id).await
 	}
 
 	fn generate_token() -> Result<SessionToken> {

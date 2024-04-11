@@ -6,41 +6,34 @@ use crate::domain::RussetDomainService;
 use crate::http::session::AuthenticatedUser;
 use crate::persistence::model::{ Entry, User };
 use crate::persistence::RussetPersistenceLayer;
-use crate::persistence::sql::SqlDatabase;
 use sailfish::TemplateOnce;
 use std::sync::Arc;
 
 mod session;
 mod static_routes;
+mod subscribe;
 mod login;
 
-pub fn russet_router() -> Router<AppState<SqlDatabase>> {
+pub fn russet_router<Persistence>() -> Router<AppState<Persistence>>
+where Persistence: RussetPersistenceLayer {
 	Router::new()
 		.route("/styles.css", get(static_routes::styles))
 		.route("/login", get(login::login_page).post(login::login_user))
 		.route("/whoami", get(whoami))
 		.route("/", get(home))
 		.route("/entry/:id", get(|| async { "Entry page!" }))
+		.route("/subscribe", get(subscribe::subscribe_page).post(subscribe::subscribe))
 		.route("/*any", any(|| async { Redirect::to("/") }))
 }
 
 #[derive(Debug)]
 pub struct AppState<Persistence>
-where Persistence: RussetPersistenceLayer + Send + std::fmt::Debug {
+where Persistence: RussetPersistenceLayer {
 	pub domain_service: Arc<RussetDomainService<Persistence>>,
 }
 impl <Persistence> Clone for AppState<Persistence>
-where Persistence: RussetPersistenceLayer + Send + std::fmt::Debug {
+where Persistence: RussetPersistenceLayer {
 	fn clone(&self) -> Self { AppState { domain_service: self.domain_service.clone() } }
-}
-
-#[tracing::instrument]
-async fn list_entries(
-	State(state): State<AppState<SqlDatabase>>,
-	user: AuthenticatedUser<SqlDatabase>,
-) -> Html<String> {
-	let feeds = state.domain_service.get_feeds().await;
-	Html(format!("<pre>{:#?}</pre>", feeds))
 }
 
 #[derive(TemplateOnce)]
@@ -49,27 +42,27 @@ pub struct HomePage<'a> {
 	user: &'a User,
 	entries: &'a [Entry],
 }
-#[axum_macros::debug_handler]
 #[tracing::instrument]
-async fn home(
-	State(state): State<AppState<SqlDatabase>>,
-	user: AuthenticatedUser<SqlDatabase>,
-) -> Html<String> {
+async fn home<Persistence>(
+	State(state): State<AppState<Persistence>>,
+	user: AuthenticatedUser<Persistence>,
+) -> Html<String>
+where Persistence: RussetPersistenceLayer {
 	let entries = state.domain_service
-		.get_entries()
+		.get_subscribed_entries(&user.user.id)
 		.await
 		.into_iter()
 		.filter_map(|entry| entry.ok())
 		.collect::<Vec<Entry>>();
 	Html(HomePage{ user: &user.user, entries: entries.as_slice() }.render_once().unwrap())
 }
-	
 
 #[tracing::instrument]
-async fn whoami(
-	State(state): State<AppState<SqlDatabase>>,
-	AuthenticatedUser { user, .. }: AuthenticatedUser<SqlDatabase>,
-) -> Html<String> {
+async fn whoami<Persistence>(
+	State(state): State<AppState<Persistence>>,
+	AuthenticatedUser { user, .. }: AuthenticatedUser<Persistence>,
+) -> Html<String>
+where Persistence: RussetPersistenceLayer {
 	Html(format!("Authenticated as {}", user.name))
 }
 

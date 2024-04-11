@@ -1,5 +1,6 @@
 pub mod atom;
 pub mod model;
+pub mod rss;
 
 use crate::Result;
 use model::Feed;

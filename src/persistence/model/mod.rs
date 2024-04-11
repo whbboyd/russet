@@ -3,9 +3,14 @@ use std::ops::Deref;
 use std::time::SystemTime;
 use ulid::Ulid;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct FeedId(pub Ulid);
 impl Deref for FeedId { type Target = Ulid; fn deref(&self) -> &Self::Target { &self.0 } }
+impl std::fmt::Debug for FeedId {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("\"{}\"", &self.to_string()))
+	}
+}
 /// Metadata for a feed, e.g. title and feed URL
 #[derive(Clone, Debug)]
 pub struct Feed {
@@ -14,9 +19,14 @@ pub struct Feed {
 	pub url: Url,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct EntryId(pub Ulid);
 impl Deref for EntryId{ type Target = Ulid; fn deref(&self) -> &Self::Target { &self.0 } }
+impl std::fmt::Debug for EntryId {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("\"{}\"", &self.to_string()))
+	}
+}
 /// Individual entry from a given feed
 #[derive(Clone, Debug)]
 pub struct Entry {
@@ -29,23 +39,26 @@ pub struct Entry {
 	pub url: Option<Url>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct UserId(pub Ulid);
 impl Deref for UserId{ type Target = Ulid; fn deref(&self) -> &Self::Target { &self.0 } }
+impl std::fmt::Debug for UserId {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("\"{}\"", &self.to_string()))
+	}
+}
 #[derive(Clone)]
+pub struct PasswordHash(pub String);
+impl std::fmt::Debug for PasswordHash {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_str("\"<redacted>\"")
+	}
+}
+#[derive(Clone, Debug)]
 pub struct User {
 	pub id: UserId,
 	pub name: String,
-	pub password_hash: String,
-}
-impl std::fmt::Debug for User {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		f.debug_struct("User")
-			.field("id", &self.id.to_string())
-			.field("name", &self.name)
-			.field("password_hash", &"<redacted>")
-			.finish()
-	}
+	pub password_hash: PasswordHash,
 }
 
 #[derive(Clone)]
@@ -55,18 +68,9 @@ impl std::fmt::Debug for SessionToken {
 		f.write_fmt(format_args!("\"{}<redacted>\"", &self.0[..4]))
 	}
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Session {
 	pub token: SessionToken,
 	pub user_id: UserId,
 	pub expiration: SystemTime,
-}
-impl std::fmt::Debug for Session {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		f.debug_struct("Session")
-			.field("token", &self.token)
-			.field("user_id", &self.user_id.to_string())
-			.field("expiration", &self.expiration)
-			.finish()
-	}
 }

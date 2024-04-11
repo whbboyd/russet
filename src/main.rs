@@ -11,6 +11,8 @@ mod persistence;
 
 use domain::RussetDomainService;
 use feed::atom::AtomFeedReader;
+use feed::rss::RssFeedReader;
+use feed::RussetFeedReader;
 use persistence::sql::SqlDatabase;
 use std::error::Error;
 use std::path::Path;
@@ -37,12 +39,16 @@ async fn main() -> Result<()> {
 	init_tracing();
 	info!("Starting Russet…");
 	let db = SqlDatabase::new(Path::new(DB_FILE)).await?;
-	let reader = Box::new(AtomFeedReader::new());
-	let domain_service = Arc::new(RussetDomainService::new(db, vec![reader], PEPPER.as_bytes().to_vec())?);
+	let readers: Vec<Box<dyn RussetFeedReader + Send + Sync>> = vec![
+		Box::new(RssFeedReader::new()),
+		Box::new(AtomFeedReader::new()),
+	];
+	let domain_service = Arc::new(RussetDomainService::new(db, readers, PEPPER.as_bytes().to_vec())?);
 
 	info!("Setup complete, initializing…");
 	// TODO: Initialize with feed and hard-coded user
 	domain_service.add_feed(&reqwest::Url::parse(FEED_URL)?).await?;
+	domain_service.add_feed(&reqwest::Url::parse("https://dumbingofage.com/feed/")?).await?;
 	let _swallowed = domain_service.add_user("admin", "swordfish").await;
 
 	// Start the feed update coroutine
@@ -53,7 +59,7 @@ async fn main() -> Result<()> {
 			if let Err(err) = update_service.update_feeds().await {
 				error!("Error updating feeds: {}", err);
 			}
-			tokio::time::sleep(Duration::from_secs(/*FIXME*/30)).await;
+			tokio::time::sleep(Duration::from_secs(/*FIXME*/3_600)).await;
 		}
 	} );
 

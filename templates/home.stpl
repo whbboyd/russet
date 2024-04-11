@@ -11,5 +11,6 @@
 		<ul>
 			<% for entry in entries { %><li><a href="<%= entry.url.as_ref().unwrap().to_string() %>"><%= entry.title %></a></li> <% } %>
 		</ul>
+		<a href="subscribe">Subscribe</a>
 	</body>
 </html>

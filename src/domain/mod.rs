@@ -7,13 +7,13 @@ use crate::persistence::RussetPersistenceLayer;
 use crate::Result;
 
 pub struct RussetDomainService<Persistence>
-where Persistence: RussetPersistenceLayer + std::fmt::Debug {
+where Persistence: RussetPersistenceLayer {
 	persistence: Persistence,
 	readers: Vec<Box<dyn RussetFeedReader + Send + Sync>>,
 	pepper: Vec<u8>,
 }
 impl <Persistence> RussetDomainService<Persistence>
-where Persistence: RussetPersistenceLayer + std::fmt::Debug {
+where Persistence: RussetPersistenceLayer {
 	pub fn new(
 		persistence: Persistence,
 		readers: Vec<Box<dyn RussetFeedReader + Send + Sync>>,
@@ -27,7 +27,7 @@ where Persistence: RussetPersistenceLayer + std::fmt::Debug {
 	}
 }
 impl <Persistence> std::fmt::Debug for RussetDomainService<Persistence>
-where Persistence: RussetPersistenceLayer + std::fmt::Debug {
+where Persistence: RussetPersistenceLayer {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("RussetPersistenceLayer")
 			.field("persistence", &self.persistence)
