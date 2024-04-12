@@ -5,7 +5,7 @@ use argon2::password_hash::rand_core::OsRng;
 use base32ct::{ Base32Unpadded, Encoding };
 use crate::domain::RussetDomainService;
 use crate::Result;
-use crate::persistence::RussetPersistenceLayer;
+use crate::persistence::RussetUserPersistenceLayer;
 use crate::persistence::model::{ FeedId, PasswordHash, Session, SessionToken, User, UserId };
 use getrandom::getrandom;
 use std::time::{ Duration, SystemTime };
@@ -13,7 +13,7 @@ use tracing::info;
 use ulid::Ulid;
 
 impl <'pepper, Persistence> RussetDomainService<Persistence>
-where Persistence: RussetPersistenceLayer {
+where Persistence: RussetUserPersistenceLayer {
 
 	pub async fn login_user(&self, user_name: String, plaintext_password: String) -> Result<Option<Session>> {
 		let password_hash = Argon2::new_with_secret(

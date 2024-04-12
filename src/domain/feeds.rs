@@ -1,14 +1,14 @@
 use crate::domain::RussetDomainService;
 use crate::Result;
 use crate::persistence::model::{ Entry, EntryId, Feed, FeedId };
-use crate::persistence::RussetPersistenceLayer;
+use crate::persistence::{ RussetEntryPersistenceLayer, RussetFeedPersistenceLayer };
 use crate::feed::model::Feed as ReaderFeed;
 use reqwest::Url;
 use std::collections::HashSet;
 use ulid::Ulid;
 
 impl <Persistence> RussetDomainService<Persistence>
-where Persistence: RussetPersistenceLayer {
+where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 
 	/// Update the stored entries for all feeds known to the persistence layer
 	pub async fn update_feeds(&self) -> Result<()> {
