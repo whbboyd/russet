@@ -26,7 +26,6 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
 // TODO: hardcoded config for now
-static FEED_URL: &str = "https://whbboyd.com/feeds/atom.xml";
 static DB_FILE: &str = "/tmp/russet-db.sqlite";
 static PEPPER: &str = "IzvoEPMQIi82NSXTz7cZ";
 static LISTEN: &str = "127.0.0.1:9892";
@@ -39,16 +38,14 @@ async fn main() -> Result<()> {
 	init_tracing();
 	info!("Starting Russet…");
 	let db = SqlDatabase::new(Path::new(DB_FILE)).await?;
-	let readers: Vec<Box<dyn RussetFeedReader + Send + Sync>> = vec![
+	let readers: Vec<Box<dyn RussetFeedReader>> = vec![
 		Box::new(RssFeedReader::new()),
 		Box::new(AtomFeedReader::new()),
 	];
 	let domain_service = Arc::new(RussetDomainService::new(db, readers, PEPPER.as_bytes().to_vec())?);
 
 	info!("Setup complete, initializing…");
-	// TODO: Initialize with feed and hard-coded user
-	domain_service.add_feed(&reqwest::Url::parse(FEED_URL)?).await?;
-	domain_service.add_feed(&reqwest::Url::parse("https://dumbingofage.com/feed/")?).await?;
+	// TODO: Initialize with hard-coded user
 	let _swallowed = domain_service.add_user("admin", "swordfish").await;
 
 	// Start the feed update coroutine

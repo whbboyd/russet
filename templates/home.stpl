@@ -4,13 +4,42 @@
 		<title>Russet - Home</title>
 		<meta charset="utf-8" />
 		<link rel="stylesheet" href="/styles.css" />
+		<link rel="stylesheet" href="styles.css" />
+		<style>
+			.alt {
+				background: #333;
+			}
+			td {
+				padding-left: 1em;
+				padding-right: 1em;
+				border: none;
+			}
+			td.center {
+				text-align: center;
+			}
+		</style>
 	</head>
 	<body>
 		<p>User: <%= user.name %></p>
 		<h1>Entries:</h1>
-		<ul>
-			<% for entry in entries { %><li><a href="<%= entry.url.as_ref().unwrap().to_string() %>"><%= entry.title %></a></li> <% } %>
-		</ul>
-		<a href="subscribe">Subscribe</a>
+		<form><table>
+			<thead class="alt">
+				<th scope="col"><input type="checkbox" name="select-all" /></th>
+				<th scope="col">Title</th>
+				<th scope="col">Date</th>
+				<th scope="col">Feed</th>
+			</thead>
+			<tbody>
+				<% for (i, entry) in entries.iter().enumerate() { %>
+				<tr<%- if (i % 2 == 1) { " class=\"alt\"" } else { "" } %>>
+					<td class="center"><input type="checkbox" name="select-<%= entry.id %>" /></td>
+					<td><a href="<%= entry.url.as_ref().unwrap() %>"><%= entry.title %></a></td>
+					<td class="center"><%= entry.article_date %></td>
+					<td class="center"><%= "some feed idk" %></td>
+				</tr>
+				<% } %>
+			</tbody>
+		</table></form>
+		<a href="/subscribe">Subscribe</a>
 	</body>
 </html>

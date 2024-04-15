@@ -4,8 +4,8 @@ use crate::feed::model::Feed;
 use crate::feed::RussetFeedReader;
 use crate::Result;
 use reqwest::Url;
-use std::time::SystemTime;
 
+#[derive(Debug)]
 pub struct AtomFeedReader { }
 impl AtomFeedReader {
 	pub fn new() -> AtomFeedReader {
@@ -26,8 +26,7 @@ impl RussetFeedReader for AtomFeedReader {
 					.filter(|link| { link.rel == "alternate" })
 					.next()
 					.map_or(None, |url| Url::parse(&url.href).ok()),
-				fetch_index: 0, // FIXME
-				article_date: SystemTime::now(), // FIXME
+				article_date: entry.updated.into(),
 				title: entry.title.value,
 			}
 		}).collect();

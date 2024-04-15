@@ -10,6 +10,8 @@ axum = { version = "0.7", features = ["tracing"] }
 axum-extra = { version = "0.9", features = ["cookie"] }
 axum-macros = "0.4"
 base32ct = { version = "0.2", features = ["std", "alloc"] }
+chrono = "0.4"
+chrono-tz = "0.9"
 getrandom = { version = "0.2", features = ["std"] }
 reqwest = "0.11"
 rss = "2.0"

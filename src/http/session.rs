@@ -18,7 +18,7 @@ pub struct AuthenticatedUser<Persistence> {
 impl <S, Persistence> FromRequestParts<S> for AuthenticatedUser<Persistence>
 where
 	S: Send + Sync,
-	Persistence: RussetPersistenceLayer + Send + Sync + std::fmt::Debug + 'static,
+	Persistence: RussetPersistenceLayer,
 	AppState<Persistence>: FromRef<S>,
 {
 	type Rejection = Response;

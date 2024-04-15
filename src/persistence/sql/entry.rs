@@ -67,7 +67,7 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 					id, feed_id, internal_id, fetch_index, article_date, title, url
 				FROM entries
 				WHERE feed_id = ?
-				ORDER BY fetch_index DESC, article_date ASC;",
+				ORDER BY fetch_index DESC, article_date DESC;",
 				feed_id,
 			)
 			.fetch_all(&self.pool)
@@ -126,7 +126,7 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 				JOIN subscriptions AS s
 				ON e.feed_id = s.feed_id
 				WHERE s.user_id = ?
-				ORDER BY fetch_index DESC, article_date ASC;"#,
+				ORDER BY fetch_index DESC, article_date DESC;"#,
 				user_id,
 			)
 			.fetch_all(&self.pool)

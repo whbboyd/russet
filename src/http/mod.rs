@@ -2,9 +2,10 @@ use axum::extract::State;
 use axum::response::{ Html, Redirect };
 use axum::Router;
 use axum::routing::{ any, get };
+use crate::domain::model::Entry;
 use crate::domain::RussetDomainService;
 use crate::http::session::AuthenticatedUser;
-use crate::persistence::model::{ Entry, User };
+use crate::persistence::model::User;
 use crate::persistence::RussetPersistenceLayer;
 use sailfish::TemplateOnce;
 use std::sync::Arc;
@@ -22,6 +23,7 @@ where Persistence: RussetPersistenceLayer {
 		.route("/whoami", get(whoami))
 		.route("/", get(home))
 		.route("/entry/:id", get(|| async { "Entry page!" }))
+		.route("/feed/:id", get(|| async { "Feed page!" }))
 		.route("/subscribe", get(subscribe::subscribe_page).post(subscribe::subscribe))
 		.route("/*any", any(|| async { Redirect::to("/") }))
 }
