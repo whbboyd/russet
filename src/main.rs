@@ -37,7 +37,13 @@ pub type Result<T> = std::result::Result<T, Err>;
 async fn main() -> Result<()> {
 	init_tracing();
 	info!("Starting Russet…");
-	let db = SqlDatabase::new(Path::new(DB_FILE)).await?;
+	// Parse commandline arguments
+	let mut args = std::env::args();
+	args.next();
+	let db_file = args.next().unwrap_or(DB_FILE.to_string());
+	let listen = args.next().unwrap_or(LISTEN.to_string());
+
+	let db = SqlDatabase::new(Path::new(&db_file)).await?;
 	let readers: Vec<Box<dyn RussetFeedReader>> = vec![
 		Box::new(RssFeedReader::new()),
 		Box::new(AtomFeedReader::new()),
@@ -64,9 +70,9 @@ async fn main() -> Result<()> {
 	let app_state = http::AppState { domain_service: domain_service.clone() };
 	let routes = http::russet_router()
 		.with_state(app_state);
-	let listener = tokio::net::TcpListener::bind(LISTEN).await?;
+	let listener = tokio::net::TcpListener::bind(&listen).await?;
 	info!("Initialization complete, serving requests!");
-	info!("Listening on {LISTEN}…");
+	info!("Listening on {listen}…");
 	axum::serve(listener, routes).await?;
 	info!("Exiting Russet…");
 	Ok(())

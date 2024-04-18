@@ -20,7 +20,6 @@ where Persistence: RussetPersistenceLayer {
 	Router::new()
 		.route("/styles.css", get(static_routes::styles))
 		.route("/login", get(login::login_page).post(login::login_user))
-		.route("/whoami", get(whoami))
 		.route("/", get(home))
 		.route("/entry/:id", get(|| async { "Entry page!" }))
 		.route("/feed/:id", get(|| async { "Feed page!" }))
@@ -57,14 +56,5 @@ where Persistence: RussetPersistenceLayer {
 		.filter_map(|entry| entry.ok())
 		.collect::<Vec<Entry>>();
 	Html(HomePage{ user: &user.user, entries: entries.as_slice() }.render_once().unwrap())
-}
-
-#[tracing::instrument]
-async fn whoami<Persistence>(
-	State(state): State<AppState<Persistence>>,
-	AuthenticatedUser { user, .. }: AuthenticatedUser<Persistence>,
-) -> Html<String>
-where Persistence: RussetPersistenceLayer {
-	Html(format!("Authenticated as {}", user.name))
 }
 
