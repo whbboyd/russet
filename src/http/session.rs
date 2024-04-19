@@ -2,8 +2,7 @@ use axum::{ async_trait, RequestPartsExt };
 use axum::extract::{ FromRef, FromRequestParts, State };
 use axum_extra::extract::cookie::CookieJar;
 use axum::http::request::Parts;
-use axum::http::StatusCode;
-use axum::response::{ IntoResponse, Response };
+use axum::response::{ IntoResponse, Redirect, Response };
 use core::marker::PhantomData;
 use crate::http::AppState;
 use crate::persistence::model::User;
@@ -37,11 +36,11 @@ where
 				match user {
 					Some(user) => Ok(AuthenticatedUser { user, phantom: PhantomData }),
 					// Session cookie is present but invalid; user needs to reauthenticate
-					None => Err(StatusCode::UNAUTHORIZED.into_response()),
+					None => Err(Redirect::to("/login").into_response()),
 				}
 			},
-			// Session cookies is missing; anonymous access to resource that requires authentication
-			None => Err(StatusCode::FORBIDDEN.into_response()),
+			// Session cookies is missing user needs to autheticate
+			None => Err(Redirect::to("/login").into_response()),
 		}
 	}
 }
