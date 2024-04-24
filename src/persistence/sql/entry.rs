@@ -206,7 +206,11 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 		sqlx::query!("
 				INSERT INTO user_entry_settings (
 					user_id, entry_id, read, tombstone
-				) VALUES ( ?, ?, ?, ?)",
+				) VALUES ( ?, ?, ?, ?)
+				ON CONFLICT (user_id, entry_id)
+				DO UPDATE SET
+					read = excluded.read,
+					tombstone = excluded.tombstone;",
 				user_id,
 				entry_id,
 				read,
