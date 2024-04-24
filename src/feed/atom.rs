@@ -2,6 +2,7 @@ use atom_syndication::Feed as AtomFeed;
 use crate::feed::model::Entry;
 use crate::feed::model::Feed;
 use crate::feed::RussetFeedReader;
+use crate::model::Timestamp;
 use crate::Result;
 use reqwest::Url;
 
@@ -26,7 +27,7 @@ impl RussetFeedReader for AtomFeedReader {
 					.filter(|link| { link.rel == "alternate" })
 					.next()
 					.map_or(None, |url| Url::parse(&url.href).ok()),
-				article_date: entry.updated.into(),
+				article_date: Timestamp::new(entry.updated.into()),
 				title: entry.title.value,
 			}
 		}).collect();

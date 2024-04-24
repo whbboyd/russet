@@ -8,6 +8,7 @@ mod domain;
 mod feed;
 mod http;
 mod persistence;
+mod model;
 
 use domain::RussetDomainService;
 use feed::atom::AtomFeedReader;
@@ -59,8 +60,8 @@ async fn main() -> Result<()> {
 	tokio::spawn(async move {
 		loop {
 			info!("Updating feeds");
-			if let Err(err) = update_service.update_feeds().await {
-				error!("Error updating feeds: {}", err);
+			if let Err(e) = update_service.update_feeds().await {
+				error!(error = e.as_ref(), "Error updating feeds");
 			}
 			tokio::time::sleep(Duration::from_secs(/*FIXME*/3_600)).await;
 		}

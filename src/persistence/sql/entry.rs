@@ -1,8 +1,8 @@
+use crate::model::{ EntryId, FeedId, UserId };
 use crate::persistence::RussetEntryPersistenceLayer;
 use crate::persistence::sql::SqlDatabase;
-use crate::persistence::model::{ Entry, EntryId, FeedId, UserId };
+use crate::persistence::model::{ Entry, UserEntry };
 use crate::Result;
-use std::time::{ Duration, SystemTime };
 use reqwest::Url;
 use ulid::Ulid;
 
@@ -12,7 +12,7 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 	async fn add_entry(&self, entry: &Entry, feed_id: &FeedId) -> Result<()> {
 		let entry_id = entry.id.to_string();
 		let feed_id = feed_id.to_string();
-		let article_date: i64 = entry.article_date.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis().try_into().unwrap();
+		let article_date: i64 = entry.article_date.clone().try_into()?;
 		let entry_url = entry.url.clone().map(|url| url.to_string());
 		sqlx::query!("
 				INSERT INTO entries (
@@ -45,14 +45,13 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 			.await?;
 		let id = EntryId(Ulid::from_string(&row.id)?);
 		let feed_id = FeedId(Ulid::from_string(&row.feed_id)?);
-		let article_date = SystemTime::UNIX_EPOCH + Duration::from_millis(row.article_date.try_into().unwrap()); //FIXME
 		let url = row.url.map(|url| Url::parse(&url)).transpose()?;
 		Ok(Entry {
 			id,
 			feed_id,
 			internal_id: row.internal_id,
 			fetch_index: row.fetch_index as u32,
-			article_date,
+			article_date: row.article_date.into(),
 			title: row.title,
 			url,
 		} )
@@ -77,14 +76,13 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 				rows.into_iter().map(|row| {
 					let id = EntryId(Ulid::from_string(&row.id)?);
 					let feed_id = FeedId(Ulid::from_string(&row.feed_id)?);
-					let article_date = SystemTime::UNIX_EPOCH + Duration::from_millis(row.article_date.try_into().unwrap()); //FIXME
 					let url = row.url.map(|url| Url::parse(&url)).transpose()?;
 					Ok(Entry {
 						id,
 						feed_id,
 						internal_id: row.internal_id,
 						fetch_index: row.fetch_index as u32,
-						article_date,
+						article_date: row.article_date.into(),
 						title: row.title,
 						url,
 					} )
@@ -110,8 +108,8 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 	}
 
 	#[tracing::instrument]
-	async fn get_entries_for_user(&self, user_id: &UserId) -> impl IntoIterator<Item = Result<Entry>> {
-		let user_id = user_id.to_string();
+	async fn get_entries_for_user(&self, user_id: &UserId) -> Vec<Result<(Entry, Option<UserEntry>)>> {
+		let user_id_str = user_id.to_string();
 		// TODO: Maybe do paging later. Or figure out how to stream from sqlx.
 		let rows = sqlx::query!(r#"
 				SELECT
@@ -121,37 +119,105 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 					e.fetch_index AS "fetch_index!",
 					e.article_date AS "article_date!",
 					e.title AS "title!",
-					e.url
+					e.url,
+					u.user_id AS "user_entry_user_id",
+					u.read,
+					u.tombstone
 				FROM entries AS e
-				JOIN subscriptions AS s
+				INNER JOIN subscriptions AS s
 				ON e.feed_id = s.feed_id
+				LEFT OUTER JOIN user_entry_settings AS u
+				ON s.user_id = u.user_id AND e.id = u.entry_id
 				WHERE s.user_id = ?
 				ORDER BY fetch_index DESC, article_date DESC;"#,
-				user_id,
+				user_id_str,
 			)
 			.fetch_all(&self.pool)
 			.await;
-		let rv: Vec<Result<Entry>> = match rows {
+		let rv: Vec<Result<(Entry, Option<UserEntry>)>> = match rows {
 			Ok(rows) => {
 				rows.into_iter().map(|row| {
 					let id = EntryId(Ulid::from_string(&row.id)?);
 					let feed_id = FeedId(Ulid::from_string(&row.feed_id)?);
-					let article_date = SystemTime::UNIX_EPOCH + Duration::from_millis(row.article_date.try_into().unwrap()); //FIXME
 					let url = row.url.map(|url| Url::parse(&url)).transpose()?;
-					Ok(Entry {
+					let entry = Entry {
 						id,
 						feed_id,
 						internal_id: row.internal_id,
 						fetch_index: row.fetch_index as u32,
-						article_date,
+						article_date: row.article_date.into(),
 						title: row.title,
 						url,
-					} )
+					};
+					let user_entry = if row.user_entry_user_id.is_some() {
+						Some(UserEntry {
+							read: row.read.map(|read| read.into()),
+							tombstone: row.tombstone.map(|tombstone| tombstone.into()),
+						} )
+					} else {
+						None
+					};
+					Ok( (
+						entry,
+						user_entry,
+					) )
 				} )
 					.collect()
 			},
 			Err(e) => vec![Err(Box::new(e))],
 		};
 		rv
+	}
+
+	#[tracing::instrument]
+	async fn get_entry_and_set_userentry(
+		&self,
+		entry_id: &EntryId,
+		user_id: &UserId,
+		user_entry: &UserEntry
+	) -> Result<Entry> {
+		let entry_id = entry_id.to_string();
+		let user_id = user_id.to_string();
+		let read: Option<i64> = user_entry.read
+			.clone()
+			.and_then(|timestamp| timestamp.try_into().ok());
+		let tombstone: Option<i64> = user_entry.tombstone
+			.clone()
+			.and_then(|timestamp| timestamp.try_into().ok());
+		let mut tx = self.pool.begin().await?;
+		// Query the entry first to make sure it actually exists
+		let row = sqlx::query!("
+				SELECT
+					id, feed_id, internal_id, fetch_index, article_date, title, url
+				FROM entries
+				WHERE id = ?;",
+				entry_id,
+			)
+			.fetch_one(&mut *tx)
+			.await?;
+		sqlx::query!("
+				INSERT INTO user_entry_settings (
+					user_id, entry_id, read, tombstone
+				) VALUES ( ?, ?, ?, ?)",
+				user_id,
+				entry_id,
+				read,
+				tombstone,
+			)
+			.execute(&mut *tx)
+			.await?;
+		tx.commit().await?;
+		let id = EntryId(Ulid::from_string(&row.id)?);
+		let feed_id = FeedId(Ulid::from_string(&row.feed_id)?);
+		let url = row.url.map(|url| Url::parse(&url)).transpose()?;
+		Ok(Entry {
+			id,
+			feed_id,
+			internal_id: row.internal_id,
+			fetch_index: row.fetch_index as u32,
+			article_date: row.article_date.into(),
+			title: row.title,
+			url,
+		} )
 	}
 }

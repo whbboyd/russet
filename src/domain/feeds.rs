@@ -1,6 +1,7 @@
 use crate::domain::RussetDomainService;
 use crate::Result;
-use crate::persistence::model::{ Entry, EntryId, Feed, FeedId };
+use crate::model::{ EntryId, FeedId };
+use crate::persistence::model::{ Entry, Feed };
 use crate::persistence::{ RussetEntryPersistenceLayer, RussetFeedPersistenceLayer };
 use crate::feed::model::Feed as ReaderFeed;
 use reqwest::Url;
@@ -86,7 +87,7 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 					feed_id: FeedId(feed.id.0.clone()),
 					internal_id: entry.internal_id.clone(),
 					fetch_index,
-					article_date: entry.article_date,
+					article_date: entry.article_date.clone(),
 					title: entry.title.clone(),
 					url: entry.url.clone(),
 				}

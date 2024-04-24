@@ -3,6 +3,7 @@ use chrono::format::Fixed::RFC2822;
 use crate::feed::model::Entry;
 use crate::feed::model::Feed;
 use crate::feed::RussetFeedReader;
+use crate::model::Timestamp;
 use crate::Result;
 use reqwest::Url;
 use rss::Channel;
@@ -38,15 +39,15 @@ impl RussetFeedReader for RssFeedReader {
 }
 
 const RFC_2822: [Item; 1] = [Item::Fixed(RFC2822)];
-fn from_rss_timestamp(ts: Option<String>) -> SystemTime {
+fn from_rss_timestamp(ts: Option<String>) -> Timestamp {
 	if let Some(ts) = || -> Option<SystemTime> {
 		let ts = ts?;
 		let mut parsed = Parsed::new();
 		parse(&mut parsed, &ts, RFC_2822.iter()).ok()?;
 		Some(parsed.to_datetime().ok()?.into())
 	}() {
-		ts
+		Timestamp::new(ts)
 	} else {
-		SystemTime::now()
+		Timestamp::new(SystemTime::now())
 	}
 }

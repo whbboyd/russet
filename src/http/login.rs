@@ -6,6 +6,7 @@ use crate::http::AppState;
 use crate::persistence::RussetPersistenceLayer;
 use sailfish::TemplateOnce;
 use serde::Deserialize;
+use tracing::error;
 
 #[derive(Clone, Debug, Deserialize, TemplateOnce)]
 #[template(path = "login.stpl")]
@@ -50,6 +51,9 @@ where Persistence: RussetPersistenceLayer {
 			Redirect::to(&login.redirect_to.unwrap_or("/".to_string())),
 		)),
 		Ok(None) => Err(StatusCode::UNAUTHORIZED),
-		Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+		Err(e) => {
+			error!(error = e.as_ref());
+			Err(StatusCode::INTERNAL_SERVER_ERROR)
+		}
 	}
 }

@@ -1,6 +1,7 @@
+use crate::model::FeedId;
 use crate::persistence::RussetFeedPersistenceLayer;
 use crate::persistence::sql::SqlDatabase;
-use crate::persistence::model::{ Feed, FeedId };
+use crate::persistence::model::Feed;
 use crate::Result;
 use reqwest::Url;
 use ulid::Ulid;

@@ -1,8 +1,8 @@
-use crate::persistence::model::{ FeedId, PasswordHash, Session, SessionToken, User, UserId };
+use crate::model::{ FeedId, UserId };
+use crate::persistence::model::{ PasswordHash, Session, SessionToken, User };
 use crate::persistence::RussetUserPersistenceLayer;
 use crate::persistence::sql::SqlDatabase;
 use crate::Result;
-use std::time::{ Duration, SystemTime };
 use ulid::Ulid;
 
 impl RussetUserPersistenceLayer for SqlDatabase {
@@ -52,7 +52,7 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 	#[tracing::instrument]
 	async fn add_session(&self, session: &Session) -> Result<()> {
 		let user_id = session.user_id.to_string();
-		let expiration: i64 = session.expiration.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis().try_into().unwrap();
+		let expiration = TryInto::<i64>::try_into(session.expiration.clone())?;
 		sqlx::query!("
 				INSERT INTO sessions (
 					token, user_id, expiration
@@ -82,7 +82,6 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 		match row_result {
 			Ok(row) => {
 				let user_id = UserId(Ulid::from_string(&row.id)?);
-				let expiration = SystemTime::UNIX_EPOCH + Duration::from_millis(row.expiration.try_into().unwrap()); //FIXME
 				let password_hash = PasswordHash(row.password_hash);
 				Ok(Some((
 					User {
@@ -93,7 +92,7 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 					Session {
 						token: SessionToken(session_token.to_string()),
 						user_id,
-						expiration,
+						expiration: row.expiration.into(),
 					}
 				) ) )
 			},

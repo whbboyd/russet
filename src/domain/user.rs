@@ -1,12 +1,13 @@
 use argon2::{ Argon2, PasswordHasher, PasswordVerifier };
 use argon2::password_hash::Error::Password;
-use argon2::password_hash::SaltString;
 use argon2::password_hash::rand_core::OsRng;
+use argon2::password_hash::SaltString;
 use base32ct::{ Base32Unpadded, Encoding };
 use crate::domain::RussetDomainService;
-use crate::Result;
+use crate::model::{ FeedId, Timestamp, UserId };
+use crate::persistence::model::{ PasswordHash, Session, SessionToken, User };
 use crate::persistence::RussetUserPersistenceLayer;
-use crate::persistence::model::{ FeedId, PasswordHash, Session, SessionToken, User, UserId };
+use crate::Result;
 use getrandom::getrandom;
 use std::time::{ Duration, SystemTime };
 use tracing::info;
@@ -30,7 +31,7 @@ where Persistence: RussetUserPersistenceLayer {
 				match password_hash.verify_password(&password_bytes, &parsed_hash) {
 					Ok(_) => {
 						let token = Self::generate_token()?;
-						let expiration = SystemTime::now() + Duration::new(3_600, 0);
+						let expiration = Timestamp::new(SystemTime::now() + Duration::new(3_600, 0));
 						let session = Session {
 							token,
 							user_id: user.id,

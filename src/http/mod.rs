@@ -10,10 +10,11 @@ use crate::persistence::RussetPersistenceLayer;
 use sailfish::TemplateOnce;
 use std::sync::Arc;
 
+mod entry;
+mod login;
 mod session;
 mod static_routes;
 mod subscribe;
-mod login;
 
 pub fn russet_router<Persistence>() -> Router<AppState<Persistence>>
 where Persistence: RussetPersistenceLayer {
@@ -21,7 +22,7 @@ where Persistence: RussetPersistenceLayer {
 		.route("/styles.css", get(static_routes::styles))
 		.route("/login", get(login::login_page).post(login::login_user))
 		.route("/", get(home))
-		.route("/entry/:id", get(|| async { "Entry page!" }))
+		.route("/entry/:id", get(entry::mark_read_redirect))
 		.route("/feed/:id", get(|| async { "Feed page!" }))
 		.route("/subscribe", get(subscribe::subscribe_page).post(subscribe::subscribe))
 		.route("/*any", any(|| async { Redirect::to("/") }))

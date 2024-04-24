@@ -1,5 +1,5 @@
+use crate::model::Timestamp;
 use reqwest::Url;
-use std::time::SystemTime;
 
 #[derive(Debug)]
 pub struct Feed {
@@ -11,6 +11,6 @@ pub struct Feed {
 pub struct Entry {
 	pub internal_id: String,
 	pub url: Option<Url>,
-	pub article_date: SystemTime,
+	pub article_date: Timestamp,
 	pub title: String,
 }

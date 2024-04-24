@@ -6,4 +6,6 @@ pub struct Entry {
 	pub url: Option<String>,
 	pub title: String,
 	pub article_date: String,
+	pub read: bool,
+	pub tombstone: bool,
 }
