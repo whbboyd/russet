@@ -1,4 +1,4 @@
-use crate::model::{ EntryId, FeedId, UserId };
+use crate::model::{ EntryId, FeedId, Pagination, UserId };
 use crate::persistence::RussetEntryPersistenceLayer;
 use crate::persistence::sql::SqlDatabase;
 use crate::persistence::model::{ Entry, UserEntry };
@@ -108,7 +108,11 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 	}
 
 	#[tracing::instrument]
-	async fn get_entries_for_user(&self, user_id: &UserId) -> Vec<Result<(Entry, Option<UserEntry>)>> {
+	async fn get_entries_for_user(
+		&self,
+		user_id: &UserId,
+		pagination: &Pagination,
+	) -> Vec<Result<(Entry, Option<UserEntry>)>> {
 		let user_id_str = user_id.to_string();
 		// TODO: Maybe do paging later. Or figure out how to stream from sqlx.
 		let rows = sqlx::query!(r#"
@@ -125,12 +129,16 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 					u.tombstone
 				FROM entries AS e
 				INNER JOIN subscriptions AS s
-				ON e.feed_id = s.feed_id
+					ON e.feed_id = s.feed_id
 				LEFT OUTER JOIN user_entry_settings AS u
-				ON s.user_id = u.user_id AND e.id = u.entry_id
+					ON s.user_id = u.user_id AND e.id = u.entry_id
 				WHERE s.user_id = ?
-				ORDER BY fetch_index DESC, article_date DESC;"#,
+				ORDER BY fetch_index DESC, article_date DESC
+				LIMIT ?
+				OFFSET ?;"#,
 				user_id_str,
+				pagination.page_size,
+				pagination.page_num * pagination.page_size,
 			)
 			.fetch_all(&self.pool)
 			.await;

@@ -18,6 +18,12 @@ impl std::fmt::Debug for Timestamp {
 	}
 }
 
+#[derive(Clone, Deserialize, Debug)]
+pub struct Pagination {
+	page_num: usize,
+	page_size: usize,
+}
+
 #[derive(Clone)]
 pub struct FeedId(pub Ulid);
 impl Deref for FeedId { type Target = Ulid; fn deref(&self) -> &Self::Target { &self.0 } }

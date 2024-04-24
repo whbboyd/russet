@@ -2,7 +2,7 @@ pub mod model;
 pub mod sql;
 
 use crate::Result;
-use crate::model::{ EntryId, FeedId, UserId };
+use crate::model::{ EntryId, FeedId, Pagination, UserId };
 use model::{ Entry, Feed, Session, User, UserEntry };
 use reqwest::Url;
 use std::future::Future;
@@ -47,7 +47,7 @@ pub trait RussetEntryPersistenceLayer: Send + Sync + std::fmt::Debug + 'static {
 		-> impl Future<Output = Result<u32>> + Send;
 
 	/// get all the entries for all the feeds to which the given user is subscribed.
-	fn get_entries_for_user(&self, user_id: &UserId)
+	fn get_entries_for_user(&self, user_id: &UserId, pagination: &Pagination<EntryId>)
 		-> impl Future<Output = impl IntoIterator<Item = Result<(Entry, Option<UserEntry>)>>> + Send;
 
 	fn get_entry_and_set_userentry(

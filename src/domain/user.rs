@@ -13,7 +13,7 @@ use std::time::{ Duration, SystemTime };
 use tracing::info;
 use ulid::Ulid;
 
-impl <'pepper, Persistence> RussetDomainService<Persistence>
+impl <Persistence> RussetDomainService<Persistence>
 where Persistence: RussetUserPersistenceLayer {
 
 	pub async fn login_user(&self, user_name: String, plaintext_password: String) -> Result<Option<Session>> {
