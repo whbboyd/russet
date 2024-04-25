@@ -2,7 +2,7 @@ use chrono::{ DateTime, TimeDelta, Utc };
 use chrono_tz::Tz;
 use crate::domain::model::Entry;
 use crate::domain::RussetDomainService;
-use crate::model::{ EntryId, UserId, Timestamp };
+use crate::model::{ EntryId, Pagination, Timestamp, UserId };
 use crate::persistence::model::{ Entry as PersistenceEntry, UserEntry };
 use crate::persistence::RussetEntryPersistenceLayer;
 use crate::Result;
@@ -10,9 +10,13 @@ use std::time::SystemTime;
 
 impl <Persistence> RussetDomainService<Persistence>
 where Persistence: RussetEntryPersistenceLayer {
-	pub async fn get_subscribed_entries(&self, user_id: &UserId) -> impl IntoIterator<Item = Result<Entry>> {
+	pub async fn get_subscribed_entries(
+		&self,
+		user_id: &UserId,
+		pagination: &Pagination
+	) -> impl IntoIterator<Item = Result<Entry>> {
 		self.persistence
-			.get_entries_for_user(user_id)
+			.get_entries_for_user(user_id, pagination)
 			.await
 			.into_iter()
 			.map(|result| result.map(|(entry, user_entry)| convert_entry(entry, user_entry, /*FIXME*/Tz::UTC)))

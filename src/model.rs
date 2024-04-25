@@ -20,8 +20,8 @@ impl std::fmt::Debug for Timestamp {
 
 #[derive(Clone, Deserialize, Debug)]
 pub struct Pagination {
-	page_num: usize,
-	page_size: usize,
+	pub page_num: usize,
+	pub page_size: usize,
 }
 
 #[derive(Clone)]

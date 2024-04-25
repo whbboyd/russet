@@ -114,6 +114,14 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 		pagination: &Pagination,
 	) -> Vec<Result<(Entry, Option<UserEntry>)>> {
 		let user_id_str = user_id.to_string();
+		let page_size: i64 = match pagination.page_size.try_into() {
+			Ok(i) => i,
+			Err(e) => return vec![Err(e.into())]
+		};
+		let page_offset: i64 = match (pagination.page_num * pagination.page_size).try_into() {
+			Ok(i) => i,
+			Err(e) => return vec![Err(e.into())]
+		};
 		// TODO: Maybe do paging later. Or figure out how to stream from sqlx.
 		let rows = sqlx::query!(r#"
 				SELECT
@@ -137,8 +145,8 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 				LIMIT ?
 				OFFSET ?;"#,
 				user_id_str,
-				pagination.page_size,
-				pagination.page_num * pagination.page_size,
+				page_size,
+				page_offset,
 			)
 			.fetch_all(&self.pool)
 			.await;

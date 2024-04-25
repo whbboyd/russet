@@ -1,13 +1,15 @@
-use axum::extract::State;
+use axum::extract::{ Form, State };
 use axum::response::{ Html, Redirect };
 use axum::Router;
 use axum::routing::{ any, get };
 use crate::domain::model::Entry;
 use crate::domain::RussetDomainService;
 use crate::http::session::AuthenticatedUser;
+use crate::model::Pagination;
 use crate::persistence::model::User;
 use crate::persistence::RussetPersistenceLayer;
 use sailfish::TemplateOnce;
+use serde::Deserialize;
 use std::sync::Arc;
 
 mod entry;
@@ -40,22 +42,41 @@ where Persistence: RussetPersistenceLayer {
 
 #[derive(TemplateOnce)]
 #[template(path = "home.stpl")]
-pub struct HomePage<'a> {
+struct HomePageTemplate<'a> {
 	user: &'a User,
 	entries: &'a [Entry],
+	page_num: usize,
+}
+
+#[derive(Debug, Deserialize)]
+struct PageQuery {
+	page_num: Option<usize>,
+	page_size: Option<usize>,
 }
 #[tracing::instrument]
 async fn home<Persistence>(
 	State(state): State<AppState<Persistence>>,
 	user: AuthenticatedUser<Persistence>,
+	Form(pagination): Form<PageQuery>,
 ) -> Html<String>
 where Persistence: RussetPersistenceLayer {
+	let page_num = pagination.page_num.unwrap_or(0);
+	let page_size = pagination.page_size.unwrap_or(100);
+	let pagination = Pagination { page_num, page_size };
 	let entries = state.domain_service
-		.get_subscribed_entries(&user.user.id)
+		.get_subscribed_entries(&user.user.id, &pagination)
 		.await
 		.into_iter()
 		.filter_map(|entry| entry.ok())
 		.collect::<Vec<Entry>>();
-	Html(HomePage{ user: &user.user, entries: entries.as_slice() }.render_once().unwrap())
+	Html(
+		HomePageTemplate{
+			user: &user.user,
+			entries: entries.as_slice(),
+			page_num: pagination.page_num
+		}
+		.render_once()
+		.unwrap()
+	)
 }
 
