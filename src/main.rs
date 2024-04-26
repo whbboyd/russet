@@ -38,12 +38,13 @@ static LISTEN: &str = "127.0.0.1:9892";
 static REPO_URL: &str = "https://github.com/whbboyd/russet";
 
 static APP_NAME: &str = "Russet";
+static VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub type Err = Box<dyn Error + Send + Sync + 'static>;
 pub type Result<T> = std::result::Result<T, Err>;
 
 #[derive(Debug, Parser)]
-#[command(version, about, long_about = None)]
+#[command(version = VERSION, about, long_about = None)]
 struct Cli {
 	/// Command
 	#[command(subcommand)]
