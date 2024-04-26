@@ -13,6 +13,9 @@ impl <Persistence> RussetDomainService<Persistence>
 where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 
 	/// Update the stored entries for all feeds known to the persistence layer
+	///
+	/// TODO: There could be multiple errors, and this will swallow all but one
+	/// of them.
 	pub async fn update_feeds(&self) -> Result<()> {
 		let fetch_index = self.persistence.get_and_increment_fetch_index().await?;
 		let feeds = self.persistence
@@ -21,10 +24,13 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 			.into_iter()
 			.filter_map(|feed| feed.ok())
 			.collect::<Vec<PersistenceFeed>>();
+		let mut errors = vec![];
 		for feed in feeds {
-			self.update_feed(&feed, fetch_index).await?;
+			if let Err(e) = self.update_feed(&feed, fetch_index).await {
+				errors.push(Err(e))
+			}
 		}
-		Ok(())
+		errors.into_iter().next().unwrap_or(Ok(()))
 	}
 
 	/// Given a URL, ensure the feed is stored in the persistence layer.
