@@ -12,8 +12,10 @@ axum-macros = "0.4"
 base32ct = { version = "0.2", features = ["std", "alloc"] }
 chrono = "0.4"
 chrono-tz = "0.9"
+clap = { version = "4.5", features = ["derive"] }
 getrandom = { version = "0.2", features = ["std"] }
 reqwest = "0.11"
+rpassword = "7.3"
 rss = "2.0"
 sailfish = "0.8"
 serde = "1.0"

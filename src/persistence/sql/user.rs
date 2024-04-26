@@ -14,10 +14,50 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 		sqlx::query!("
 				INSERT INTO users (
 					id, name, password_hash
-				) VALUES ( ?, ?, ? )",
+				) VALUES ( ?, ?, ? );",
 				user_id,
 				user.name,
 				password_hash,
+			)
+			.execute(&self.pool)
+			.await?;
+		Ok(())
+	}
+
+	#[tracing::instrument]
+	async fn update_user(&self, user: &User) -> Result<()> {
+		let user_id = user.id.to_string();
+		let password_hash = &user.password_hash.0;
+		sqlx::query!("
+				UPDATE users SET
+					name = ?,
+					password_hash = ?
+				WHERE id = ?;",
+				user.name,
+				password_hash,
+				user_id,
+			)
+			.execute(&self.pool)
+			.await?;
+		Ok(())
+	}
+
+	#[tracing::instrument]
+	async fn delete_user(&self, user_id: &UserId) -> Result<()> {
+		let user_id = user_id.to_string();
+		sqlx::query!("
+				DELETE FROM sessions
+				WHERE user_id = ?;
+				DELETE FROM user_entry_settings
+				WHERE user_id = ?;
+				DELETE FROM subscriptions
+				WHERE user_id = ?;
+				DELETE FROM users
+				WHERE id = ?",
+				user_id,
+				user_id,
+				user_id,
+				user_id,
 			)
 			.execute(&self.pool)
 			.await?;

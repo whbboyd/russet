@@ -7,6 +7,7 @@ use crate::domain::RussetDomainService;
 use crate::model::{ FeedId, Timestamp, UserId };
 use crate::persistence::model::{ PasswordHash, Session, SessionToken, User };
 use crate::persistence::RussetUserPersistenceLayer;
+use crate::Err;
 use crate::Result;
 use getrandom::getrandom;
 use std::time::{ Duration, SystemTime };
@@ -62,24 +63,46 @@ where Persistence: RussetUserPersistenceLayer {
 		if let Some(user) = self.persistence.get_user_by_name(&user_name).await? {
 			return Err(format!("User {} ({}) already exists", user.name, user.id.to_string()).into());
 		}
-		let password_hasher = Argon2::new_with_secret(
-				self.pepper.as_slice(),
-				argon2::Algorithm::Argon2id,
-				argon2::Version::V0x13,
-				argon2::Params::DEFAULT,
-			)?;
-		let salt = SaltString::generate(&mut OsRng);
-		let password_hash = PasswordHash(
-			password_hasher
-				.hash_password(plaintext_password.as_bytes(), &salt)?
-				.to_string()
-		);
+		let password_hash = self.hash_password(plaintext_password)?;
 		let user = User {
 			id: UserId(Ulid::new()),
 			name: user_name.to_string(),
 			password_hash,
 		};
 		self.persistence.add_user(&user).await?;
+		Ok(())
+	}
+
+	pub async fn set_user_password(
+		&self,
+		user_name: &str,
+		plaintext_password: &str,
+	) -> Result<()> {
+		let user = self.persistence
+			.get_user_by_name(user_name)
+			.await?
+			.ok_or_else(|| -> Err { format!("No such user {user_name}").into() })?;
+		let password_hash = self.hash_password(plaintext_password)?;
+		let user = User { password_hash, ..user };
+		self.persistence.update_user(&user).await?;
+		Ok(())
+	}
+
+	pub async fn delete_user(&self, user_name: &str) -> Result<()> {
+		let user = self.persistence
+			.get_user_by_name(user_name)
+			.await?
+			.ok_or_else(|| -> Err { format!("No such user {user_name}").into() })?;
+		self.persistence.delete_user(&user.id).await?;
+		Ok(())
+	}
+
+	pub async fn delete_user_sessions(&self, user_name: &str) -> Result<()> {
+		let user = self.persistence
+			.get_user_by_name(user_name)
+			.await?
+			.ok_or_else(|| -> Err { format!("No such user {user_name}").into() })?;
+		self.persistence.delete_sessions_for_user(&user.id).await?;
 		Ok(())
 	}
 
@@ -98,5 +121,20 @@ where Persistence: RussetUserPersistenceLayer {
 		let mut bytes = [0u8; 32];
 		getrandom(&mut bytes)?;
 		Ok(SessionToken(Base32Unpadded::encode_string(&bytes)))
+	}
+
+	fn hash_password(&self, plaintext_password: &str) -> Result<PasswordHash> {
+		let password_hasher = Argon2::new_with_secret(
+				self.pepper.as_slice(),
+				argon2::Algorithm::Argon2id,
+				argon2::Version::V0x13,
+				argon2::Params::DEFAULT,
+			)?;
+		let salt = SaltString::generate(&mut OsRng);
+		Ok(PasswordHash(
+			password_hasher
+				.hash_password(plaintext_password.as_bytes(), &salt)?
+				.to_string()
+		))
 	}
 }

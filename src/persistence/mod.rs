@@ -18,8 +18,15 @@ pub trait RussetFeedPersistenceLayer: Send + Sync + std::fmt::Debug + 'static {
 	fn add_feed(&self, feed: &Feed) -> impl Future<Output = Result<()>> + Send;
 
 	/// Get all the [Feed]s stored by this persistence layer
-	async fn get_feeds(&self)
-		-> impl IntoIterator<Item = Result<Feed>, IntoIter = impl Iterator<Item = Result<Feed>> + Send>;
+	fn get_feeds(&self)
+		-> impl Future<
+			Output = impl IntoIterator<
+				Item = Result<Feed>,
+				IntoIter = impl Iterator<
+					Item = Result<Feed>
+				>
+			> + Send
+		> + Send;
 
 	/// Get a specific [Feed] by ID
 	async fn get_feed(&self, id: &FeedId) -> Result<Feed>;
@@ -65,6 +72,12 @@ pub trait RussetEntryPersistenceLayer: Send + Sync + std::fmt::Debug + 'static {
 pub trait RussetUserPersistenceLayer: Send + Sync + std::fmt::Debug + 'static {
 	/// Add the given [User] to the persistence layer
 	async fn add_user(&self, user: &User) -> Result<()>;
+
+	/// Update the user with the given [User] in the persistence layer
+	async fn update_user(&self, user: &User) -> Result<()>;
+
+	/// Delete the given [User] from the persistence layer
+	async fn delete_user(&self, user_id: &UserId) -> Result<()>;
 
 	/// Given a username, look up that user
 	fn get_user_by_name(&self, user_name: &str)
