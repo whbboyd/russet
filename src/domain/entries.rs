@@ -47,7 +47,8 @@ fn convert_entry(entry: PersistenceEntry, user_entry: Option<UserEntry>, tz: Tz)
 		article_date.date_naive().format("%Y-%m-%d").to_string()
 	};
 	Entry {
-		id: entry.id.to_string(),
+		id: entry.id,
+		feed_id: entry.feed_id,
 		url: entry.url.map(|url| url.to_string()),
 		title: entry.title,
 		article_date: article_date_str,

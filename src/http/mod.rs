@@ -2,14 +2,15 @@ use axum::extract::{ Form, State };
 use axum::response::{ Html, Redirect };
 use axum::Router;
 use axum::routing::{ any, get };
-use crate::domain::model::Entry;
+use crate::domain::model::{ Entry, Feed };
 use crate::domain::RussetDomainService;
 use crate::http::session::AuthenticatedUser;
-use crate::model::Pagination;
+use crate::model::{ FeedId, Pagination };
 use crate::persistence::model::User;
 use crate::persistence::RussetPersistenceLayer;
 use sailfish::TemplateOnce;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 mod entry;
@@ -45,6 +46,7 @@ where Persistence: RussetPersistenceLayer {
 struct HomePageTemplate<'a> {
 	user: &'a User,
 	entries: &'a [Entry],
+	feeds: &'a HashMap<FeedId, Feed>,
 	page_num: usize,
 }
 
@@ -69,10 +71,18 @@ where Persistence: RussetPersistenceLayer {
 		.into_iter()
 		.filter_map(|entry| entry.ok())
 		.collect::<Vec<Entry>>();
+	let feeds = state.domain_service
+		.feeds_for_user(&user.user.id)
+		.await
+		.into_iter()
+		.filter_map(|feed| feed.ok())
+		.map(|feed| (feed.id.clone(), feed))
+		.collect::<HashMap<FeedId, Feed>>();
 	Html(
 		HomePageTemplate{
 			user: &user.user,
 			entries: entries.as_slice(),
+			feeds: &feeds,
 			page_num: pagination.page_num
 		}
 		.render_once()

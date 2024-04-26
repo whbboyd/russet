@@ -24,7 +24,7 @@ pub struct Pagination {
 	pub page_size: usize,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, Hash, PartialEq)]
 pub struct FeedId(pub Ulid);
 impl Deref for FeedId { type Target = Ulid; fn deref(&self) -> &Self::Target { &self.0 } }
 impl std::fmt::Debug for FeedId {

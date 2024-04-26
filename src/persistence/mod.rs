@@ -24,9 +24,13 @@ pub trait RussetFeedPersistenceLayer: Send + Sync + std::fmt::Debug + 'static {
 	/// Get a specific [Feed] by ID
 	async fn get_feed(&self, id: &FeedId) -> Result<Feed>;
 
-	/// Get a specified [Feed] by URL
+	/// Get a specific [Feed] by URL
 	fn get_feed_by_url(&self, url: &Url)
 		-> impl Future<Output = Result<Option<Feed>>> + Send;
+
+	/// Get all the [Feed]s the given user is subscribed to
+	fn get_subscribed_feeds(&self, user_id: &UserId)
+		-> impl Future<Output = impl IntoIterator<Item = Result<Feed>>> + Send;
 }
 
 pub trait RussetEntryPersistenceLayer: Send + Sync + std::fmt::Debug + 'static {

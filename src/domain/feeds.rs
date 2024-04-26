@@ -1,7 +1,8 @@
+use crate::domain::model::Feed;
 use crate::domain::RussetDomainService;
 use crate::Result;
-use crate::model::{ EntryId, FeedId };
-use crate::persistence::model::{ Entry, Feed };
+use crate::model::{ EntryId, FeedId, UserId };
+use crate::persistence::model::{ Entry, Feed as PersistenceFeed };
 use crate::persistence::{ RussetEntryPersistenceLayer, RussetFeedPersistenceLayer };
 use crate::feed::model::Feed as ReaderFeed;
 use reqwest::Url;
@@ -19,7 +20,7 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 			.await
 			.into_iter()
 			.filter_map(|feed| feed.ok())
-			.collect::<Vec<Feed>>();
+			.collect::<Vec<PersistenceFeed>>();
 		for feed in feeds {
 			self.update_feed(&feed, fetch_index).await?;
 		}
@@ -44,7 +45,7 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 					.bytes()
 					.await?;
 				let reader_feed = self.feed_from_bytes(&bytes).await?;
-				let feed = Feed {
+				let feed = PersistenceFeed {
 					id: FeedId(Ulid::new()),
 					title: reader_feed.title.clone(),
 					url: url.clone(),
@@ -57,10 +58,25 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 		}
 	}
 
-	
+	pub async fn feeds_for_user(&self, user_id: &UserId) -> Vec<Result<Feed>> {
+		self.persistence
+			.get_subscribed_feeds(user_id)
+			.await
+			.into_iter()
+			.map(|feed| {
+				feed.map(|feed| {
+					Feed {
+						id: feed.id,
+						url: feed.url.to_string(),
+						title: feed.title,
+					}
+				} )
+			} )
+			.collect()
+	}
 
 	/// Update the persistence layer with [feed] (at fetch [fetch_index])
-	async fn update_feed(&self, feed: &Feed, fetch_index: u32) -> Result<()> {
+	async fn update_feed(&self, feed: &PersistenceFeed, fetch_index: u32) -> Result<()> {
 		let bytes = reqwest::get(feed.url.clone())
 				.await?
 				.bytes()
@@ -72,7 +88,7 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 
 	/// Given a parsed [reader_feed], update the persistence layer for [feed]
 	/// with the entries from it
-	async fn update_with_entries(&self, feed: &Feed, reader_feed: &ReaderFeed, fetch_index: u32) -> Result<()> {
+	async fn update_with_entries(&self, feed: &PersistenceFeed, reader_feed: &ReaderFeed, fetch_index: u32) -> Result<()> {
 		let known_internal_ids = self.persistence
 			.get_entries_for_feed(&feed.id)
 			.await
@@ -99,7 +115,12 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 		Ok(())
 	}
 
-	/// Given a 
+	/// Given a serialized feed, attempt to deserialize it using all the known
+	/// [readers].
+	///
+	/// TODO: This always attempts all [readers], but a given URL will virtually
+	/// never change format. We should store a format hint with the feed and
+	/// optiistically try that format first, before falling back to others.
 	async fn feed_from_bytes(&self, bytes: &[u8]) -> Result<ReaderFeed> {
 		let mut acc = Vec::new();
 		for reader in self.readers.as_slice() {
@@ -114,6 +135,5 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 		}
 		Err("Unable to load feed".into())
 	}
-
 }
 
