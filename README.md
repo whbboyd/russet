@@ -13,6 +13,9 @@ $ russet --db-file <database file> --listen-address <listen address/port> run
 The default database file is `/tmp/russet-db.sqlite` and the default listen
 address is `127.0.0.1:9892`.
 
+Note that there's no DoS mitigation yet (and not much hardening in general), so
+be very cautious about exposing Russet to the Internet.
+
 ## Feature wishlist
 
 The following features are not yet supported, but will be soon.
