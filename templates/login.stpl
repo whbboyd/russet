@@ -1,63 +1,20 @@
-<!DOCTYPE HTML>
-<html lang="en">
-	<head>
-		<title>Russet - Log In</title>
-		<meta charset="utf-8" />
-		<link rel="stylesheet" href="/styles.css" />
-		<style>
-			body {
-				display: flex;
-				justify-content: center;
-			}
-			input {
-				font-family: inherit;
-				font-size: 100%;
-				color: inherit;
-				margin: 0.5em;
-				border-radius: 0.25em;
-			}
-			form {
-				position: absolute;
-				width: 50em;
-				padding: 1em;
-				border-radius: 0.5em;
-				background: #333;
-			}
-			#inputs {
-				display: grid;
-				grid-template-columns: 30% 70%;
-			}
-			label {
-				text-align: right;
-				padding: 0.5em;
-			}
-			#inputs input {
-				background: none;
-				border: 1px solid #555;
-			}
-			#controls {
-				float: right;
-			}
-			#controls input {
-				background: #282;
-				color: #fff;
-				border: none;
-				padding: 0.5em 1.5em 0.5em 1.5em;
-			}
-		</style>
-	</head>
-	<body>
-		<form action="/login" method="post" id="signin">
-			<div id="inputs">
-				<label for="user_name">User name:</label>
-				<input type="text" name="user_name" />
-				<label for="plaintext_password">Password:</label>
-				<input type="password" name="plaintext_password" />
-			</div>
-<% if redirect_to != None { %>			<input type="hidden" name="redirect_to" value="<%= redirect_to.unwrap() %>" /><% } %>
-			<div id="controls">
-				<input type="submit" value = "Log in" />
-			</div>
-		</form>
-	</body>
-</html>
+<% include!("head.stpl"); %>
+		<div style="display: flex; justify-content: center;">
+			<form action="/login" method="post" class="dialog">
+				<div class="inputs">
+					<label for="user_name">User name:</label>
+					<input type="text" name="user_name" />
+					<label for="plaintext_password">Password:</label>
+					<input type="password" name="plaintext_password" />
+				</div><%
+	if redirect_to != None {
+	%>
+				<input type="hidden" name="redirect_to" value="<%= redirect_to.unwrap() %>" /><%
+	}
+	%>
+				<div class="controls">
+					<input type="submit" value = "Log in" />
+				</div>
+			</form>
+		</div>
+<% include!("foot.stpl"); %>

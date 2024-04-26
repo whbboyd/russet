@@ -1,20 +1,13 @@
-<!DOCTYPE HTML>
-<html lang="en">
-	<head>
-		<title>Russet - Subscribe</title>
-		<meta charset="utf-8" />
-		<link rel="stylesheet" href="/styles.css" />
-	</head>
-	<body>
-		<p>User: <%= user.name %></p>
-		<form action="/subscribe" method="post">
-			<div id="controls">
-				<label for="url">Feed Url:</label>
-				<input type="text" name="url"/>
-			</div>
-			<div id="controls">
-				<input type="submit" value = "Subscribe" />
-			</div>
-		</form>
-	</body>
-</html>
+<% include!("head.stpl"); %>
+		<div style="display: flex; justify-content: center;">
+			<form action="/subscribe" method="post" class="dialog">
+				<div class="inputs">
+					<label for="url">Feed Url:</label>
+					<input type="text" name="url"/>
+				</div>
+				<div class="controls">
+					<input type="submit" value = "Subscribe" />
+				</div>
+			</form>
+		</div>
+<% include!("foot.stpl"); %>

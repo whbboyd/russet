@@ -12,7 +12,9 @@ use serde::Deserialize;
 #[derive(Clone, Debug, TemplateOnce)]
 #[template(path = "subscribe.stpl")]
 pub struct SubscribePage<'a> {
-	user: &'a User,
+	user: Option<&'a User>,
+	page_title: &'a str,
+	relative_root: &'a str,
 }
 #[tracing::instrument]
 pub async fn subscribe_page<Persistence>(
@@ -20,7 +22,15 @@ pub async fn subscribe_page<Persistence>(
 	user: AuthenticatedUser<Persistence>,
 ) -> Html<String>
 where Persistence: RussetPersistenceLayer {
-	Html(SubscribePage{ user: &user.user }.render_once().unwrap())
+	Html(
+		SubscribePage{
+			user: Some(&user.user),
+			page_title: "Subscribe",
+			relative_root: "",
+		}
+		.render_once()
+		.unwrap()
+	)
 }
 
 #[derive(Debug, Deserialize, Clone)]

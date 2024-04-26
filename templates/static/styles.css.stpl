@@ -1,9 +1,36 @@
+/* Overrides */
 * {box-sizing:border-box;}
+
+/* Top-level styles */
 body {
 	color: #bbb;
 	background: #222;
 }
 
+/* Header styles */
+#header {
+	display: flex;
+	padding: 0.5em;
+}
+#header-app-title {
+	flex-grow: 1;
+	font-size: 1.5em;
+	text-align: left;
+	vertical-align: center;
+}
+#header-page-title {
+	flex-grow: 3;
+	font-size: 2em;
+	text-align: center;
+	vertical-align: center;
+}
+#header-user-info {
+	flex-grow: 1;
+	text-align: right;
+	vertical-align: center;
+}
+
+/* Link styles */
 a {
 	color: #4f4;
 	text-decoration: none;
@@ -14,4 +41,65 @@ a:visited {
 a:hover {
 	color: #fff;
 	text-decoration: underline;
+}
+
+/* Table styles */
+table {
+	width: 100%;
+}
+.alt {
+	background: #333;
+}
+.unread {
+	font-weight: bold;
+}
+td {
+	padding-left: 1em;
+	padding-right: 1em;
+	border: none;
+}
+td.center {
+	text-align: center;
+}
+
+/* Footer styles */
+#foot {
+	margin-top: 0.5em;
+	text-align: center;
+}
+
+/* Dialog form styles */
+.dialog {
+	width: 50em;
+	padding: 1em;
+	border-radius: 0.5em;
+	background: #333;
+}
+.dialog input {
+	font-family: inherit;
+	font-size: 100%;
+	color: inherit;
+	margin: 0.5em;
+	border-radius: 0.25em;
+}
+.dialog .inputs {
+	display: grid;
+	grid-template-columns: 30% 70%;
+}
+.dialog label {
+	text-align: right;
+	padding: 0.5em;
+}
+.dialog .inputs input {
+	background: none;
+	border: 1px solid #555;
+}
+.dialog .controls {
+	float: right;
+}
+.dialog .controls input {
+	background: #282;
+	color: #fff;
+	border: none;
+	padding: 0.5em 1.5em 0.5em 1.5em;
 }

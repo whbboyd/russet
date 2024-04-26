@@ -1,0 +1,7 @@
+		<div id="foot">
+			<%- crate::APP_NAME %> |
+			<a href="https://www.gnu.org/licenses/agpl-3.0.html">AGPL-3.0</a> |
+			<a href="<%- crate::REPO_URL %>">Source Code</a>
+		</div>
+	</body>
+</html>

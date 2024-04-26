@@ -31,6 +31,11 @@ static DB_FILE: &str = "/tmp/russet-db.sqlite";
 static PEPPER: &str = "IzvoEPMQIi82NSXTz7cZ";
 static LISTEN: &str = "127.0.0.1:9892";
 
+// TODO: move off of Github
+static REPO_URL: &str = "https://github.com/whbboyd/russet";
+
+static APP_NAME: &str = "Russet";
+
 pub type Err = Box<dyn Error + Send + Sync + 'static>;
 pub type Result<T> = std::result::Result<T, Err>;
 

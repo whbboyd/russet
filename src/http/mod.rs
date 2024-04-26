@@ -44,12 +44,13 @@ where Persistence: RussetPersistenceLayer {
 #[derive(TemplateOnce)]
 #[template(path = "home.stpl")]
 struct HomePageTemplate<'a> {
-	user: &'a User,
+	user: Option<&'a User>,
 	entries: &'a [Entry],
 	feeds: &'a HashMap<FeedId, Feed>,
 	page_num: usize,
+	page_title: &'a str,
+	relative_root: &'a str,
 }
-
 #[derive(Debug, Deserialize)]
 struct PageQuery {
 	page_num: Option<usize>,
@@ -80,10 +81,12 @@ where Persistence: RussetPersistenceLayer {
 		.collect::<HashMap<FeedId, Feed>>();
 	Html(
 		HomePageTemplate{
-			user: &user.user,
+			user: Some(&user.user),
 			entries: entries.as_slice(),
 			feeds: &feeds,
-			page_num: pagination.page_num
+			page_num: pagination.page_num,
+			page_title: "Entries",
+			relative_root: "",
 		}
 		.render_once()
 		.unwrap()

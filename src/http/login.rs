@@ -8,18 +8,34 @@ use sailfish::TemplateOnce;
 use serde::Deserialize;
 use tracing::error;
 
-#[derive(Clone, Debug, Deserialize, TemplateOnce)]
+#[derive(Debug, TemplateOnce)]
 #[template(path = "login.stpl")]
-pub struct LoginPage {
+pub struct LoginPageTemplate<'a> {
+	redirect_to: Option<&'a str>,
+	page_title: &'a str,
+	relative_root: &'a str,
+	user: Option<&'a crate::persistence::model::User>,
+}
+#[derive(Debug, Deserialize)]
+pub struct LoginPageQuery {
 	redirect_to: Option<String>,
 }
 #[tracing::instrument]
 pub async fn login_page<Persistence>(
 	State(_state): State<AppState<Persistence>>,
-	Form(login): Form<LoginPage>,
+	Form(login): Form<LoginPageQuery>,
 ) -> Html<String>
 where Persistence: RussetPersistenceLayer {
-	Html(LoginPage{ redirect_to: login.redirect_to }.render_once().unwrap())
+	Html(
+		LoginPageTemplate{
+			redirect_to: login.redirect_to.as_ref().map(|redirect| redirect.as_str()),
+			page_title: "Login",
+			relative_root: "",
+			user: None,
+		}
+		.render_once()
+		.unwrap()
+	)
 }
 
 #[derive(Deserialize, Clone)]
