@@ -2,6 +2,7 @@
 name = "russet"
 version = "0.6.1"
 edition = "2021"
+license = "AGPL-3.0"
 
 [dependencies]
 argon2 = { version = "0.5", features = ["alloc", "std"] }
