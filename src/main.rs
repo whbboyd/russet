@@ -4,6 +4,8 @@ extern crate rss;
 extern crate sqlx;
 extern crate tokio;
 
+mod cli;
+mod conf;
 mod domain;
 mod feed;
 mod http;
@@ -11,7 +13,9 @@ mod persistence;
 mod server;
 mod model;
 
-use clap::{ Parser, Subcommand};
+use clap::Parser;
+use crate::cli::{ Cli, Command };
+use crate::conf::Config;
 use crate::domain::RussetDomainService;
 use crate::feed::atom::AtomFeedReader;
 use crate::feed::rss::RssFeedReader;
@@ -20,6 +24,7 @@ use crate::persistence::sql::SqlDatabase;
 use crate::server::start;
 use rpassword::prompt_password;
 use std::error::Error;
+use std::fs::read_to_string;
 use std::path::Path;
 use std::sync::Arc;
 use tracing::{ info, warn };
@@ -29,73 +34,13 @@ use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-// TODO: hardcoded config for now
-static DB_FILE: &str = "/tmp/russet-db.sqlite";
-static PEPPER: &str = "IzvoEPMQIi82NSXTz7cZ";
-static LISTEN: &str = "127.0.0.1:9892";
-
 // TODO: move off of Github
 static REPO_URL: &str = "https://github.com/whbboyd/russet";
-
 static APP_NAME: &str = "Russet";
 static VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub type Err = Box<dyn Error + Send + Sync + 'static>;
 pub type Result<T> = std::result::Result<T, Err>;
-
-#[derive(Debug, Parser)]
-#[command(version = VERSION, about, long_about = None)]
-struct Cli {
-	/// Command
-	#[command(subcommand)]
-	command: Option<Command>,
-
-	/// Database file
-	#[arg(short, long, value_name = "FILE")]
-	db_file: Option<String>,
-
-	/// Listen address
-	#[arg(short, long, value_name = "ADDRESS")]
-	listen_address: Option<String>,
-}
-
-#[derive(Debug, Subcommand)]
-enum Command {
-	/// Run the Russet server
-	Run,
-
-	/// Add a user
-	AddUser {
-		user_name: String,
-		password: Option<String>,
-	},
-
-	/// Reset a user's password
-	SetUserPassword {
-		user_name: String,
-		password: Option<String>,
-	},
-
-	/// Delete a user
-	DeleteUser {
-		user_name: String,
-	},
-
-	/// Delete all sessions for a user
-	DeleteSessions {
-		user_name: String,
-	},
-
-	/// Add a feed by URL
-	AddFeed {
-		url: String,
-	},
-
-	/// Remove a feed by URL
-	RemoveFeed {
-		url: String,
-	},
-}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -103,17 +48,23 @@ async fn main() -> Result<()> {
 
 	let cli = Cli::parse();
 
-	let mut args = std::env::args();
-	args.next();
-	let db_file = cli.db_file.unwrap_or(DB_FILE.to_string());
-	let listen_address = cli.listen_address.unwrap_or(LISTEN.to_string());
+	let config = match cli.config_file {
+		Some(file_name) => {
+			let s = read_to_string(file_name)?;
+			toml::from_str(&s)?
+		},
+		None => Config::default(),
+	};
+
+	let db_file = cli.db_file.unwrap_or(config.db_file);
+	let listen_address = cli.listen_address.unwrap_or(config.listen);
 
 	let db = SqlDatabase::new(Path::new(&db_file)).await?;
 	let readers: Vec<Box<dyn RussetFeedReader>> = vec![
 		Box::new(RssFeedReader::new()),
 		Box::new(AtomFeedReader::new()),
 	];
-	let domain_service = Arc::new(RussetDomainService::new(db, readers, PEPPER.as_bytes().to_vec())?);
+	let domain_service = Arc::new(RussetDomainService::new(db, readers, config.pepper.as_bytes().to_vec())?);
 
 	match cli.command {
 		None | Some(Command::Run) => start(domain_service, listen_address).await?,

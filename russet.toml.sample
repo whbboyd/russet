@@ -1,0 +1,14 @@
+# Russet configuration file example
+
+# The file to use for persistence.
+db_file = "/tmp/russet-db.sqlite"
+
+# The address and port to listen on. The default is to listen only on localhost;
+# to serve external requests, set it to "0.0.0.0:9892" or so.
+listen = "127.0.0.1:9892"
+
+# A "pepper" for password hashing. A default is compiled in, bu you should
+# reset it before running Russet for the first time. Note that changing this
+# value will invalidate all stored passwords, i.e. it will lock out every
+# account! Any string is accepted, and is interpreted as its UTF-8 bytes.
+#pepper = "random data"

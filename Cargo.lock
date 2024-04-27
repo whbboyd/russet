@@ -1833,7 +1833,7 @@ dependencies = [
 
 [[package]]
 name = "russet"
-version = "0.6.1"
+version = "0.7.0"
 dependencies = [
  "argon2",
  "atom_syndication",
@@ -1852,6 +1852,7 @@ dependencies = [
  "serde",
  "sqlx",
  "tokio",
+ "toml",
  "tracing",
  "tracing-subscriber",
  "ulid",
