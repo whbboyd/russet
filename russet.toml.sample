@@ -7,8 +7,13 @@ db_file = "/tmp/russet-db.sqlite"
 # to serve external requests, set it to "0.0.0.0:9892" or so.
 listen = "127.0.0.1:9892"
 
-# A "pepper" for password hashing. A default is compiled in, bu you should
+# A "pepper" for password hashing. A default is compiled in, but you should
 # reset it before running Russet for the first time. Note that changing this
 # value will invalidate all stored passwords, i.e. it will lock out every
 # account! Any string is accepted, and is interpreted as its UTF-8 bytes.
 #pepper = "random data"
+
+# Interval between feed checks. This is raw Serde representation of a
+# std::time::Duration. Check interval management will likely get overhauled
+# soon.
+feed_check_interval = { "secs" = 3_600, "nanos" = 0 }
