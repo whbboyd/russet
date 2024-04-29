@@ -1,4 +1,6 @@
 use clap::{ Parser, Subcommand};
+use std::num::ParseIntError;
+use std::time::Duration;
 
 #[derive(Debug, Parser)]
 #[command(version = crate::VERSION, about, long_about = None)]
@@ -18,6 +20,17 @@ pub struct Cli {
 	/// Listen address
 	#[arg(short, long, value_name = "ADDRESS")]
 	pub listen_address: Option<String>,
+
+	/// Duration between feed checks, in seconds
+	#[arg(
+		short,
+		long,
+		value_name = "SECONDS",
+		value_parser = |arg: &str| Ok::<Duration, ParseIntError>(
+			Duration::from_secs(arg.parse()?)
+		)
+	)]
+	pub feed_check_interval: Option<Duration>,
 }
 
 #[derive(Debug, Subcommand)]

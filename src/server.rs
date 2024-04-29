@@ -3,7 +3,6 @@ use crate::domain::RussetDomainService;
 use crate::http::{ AppState, russet_router };
 use crate::persistence::RussetPersistenceLayer;
 use std::sync::Arc;
-use std::time::Duration;
 use tracing::{ error, info };
 
 pub async fn start<Persistence>(
@@ -14,13 +13,14 @@ where Persistence: RussetPersistenceLayer {
 	info!("Starting {}…", crate::APP_NAME);
 	// Start the feed update coroutine
 	let update_service = domain_service.clone();
+	let check_interval = domain_service.feed_check_interval.clone();
 	tokio::spawn(async move {
 		loop {
 			info!("Updating feeds");
 			if let Err(e) = update_service.update_feeds().await {
 				error!(error = e.as_ref(), "Error updating feeds");
 			}
-			tokio::time::sleep(Duration::from_secs(/*FIXME*/3_600)).await;
+			tokio::time::sleep(check_interval).await;
 		}
 	} );
 

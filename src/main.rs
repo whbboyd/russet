@@ -58,13 +58,19 @@ async fn main() -> Result<()> {
 
 	let db_file = cli.db_file.unwrap_or(config.db_file);
 	let listen_address = cli.listen_address.unwrap_or(config.listen);
+	let feed_check_interval = cli.feed_check_interval.unwrap_or(config.feed_check_interval);
 
 	let db = SqlDatabase::new(Path::new(&db_file)).await?;
 	let readers: Vec<Box<dyn RussetFeedReader>> = vec![
 		Box::new(RssFeedReader::new()),
 		Box::new(AtomFeedReader::new()),
 	];
-	let domain_service = Arc::new(RussetDomainService::new(db, readers, config.pepper.as_bytes().to_vec())?);
+	let domain_service = Arc::new(RussetDomainService::new(
+		db,
+		readers,
+		config.pepper.as_bytes().to_vec(),
+		feed_check_interval,
+	)?);
 
 	match cli.command {
 		None | Some(Command::Run) => start(domain_service, listen_address).await?,
