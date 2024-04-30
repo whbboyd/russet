@@ -81,7 +81,7 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 			.collect()
 	}
 
-	/// Update the persistence layer with [feed] (at fetch [fetch_index])
+	/// Update the persistence layer with `feed` (at fetch `fetch_index`)
 	async fn update_feed(&self, feed: &PersistenceFeed, fetch_index: u32) -> Result<()> {
 		let bytes = reqwest::get(feed.url.clone())
 				.await?
@@ -92,7 +92,7 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 		self.update_with_entries(feed, &reader_feed, fetch_index).await
 	}
 
-	/// Given a parsed [reader_feed], update the persistence layer for [feed]
+	/// Given a parsed `reader_feed`, update the persistence layer for `feed`
 	/// with the entries from it
 	async fn update_with_entries(&self, feed: &PersistenceFeed, reader_feed: &ReaderFeed, fetch_index: u32) -> Result<()> {
 		let known_internal_ids = self.persistence
@@ -122,11 +122,11 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 	}
 
 	/// Given a serialized feed, attempt to deserialize it using all the known
-	/// [readers].
+	/// `readers`.
 	///
-	/// TODO: This always attempts all [readers], but a given URL will virtually
+	/// TODO: This always attempts all `readers`, but a given URL will virtually
 	/// never change format. We should store a format hint with the feed and
-	/// optiistically try that format first, before falling back to others.
+	/// optimistically try that format first, before falling back to others.
 	async fn feed_from_bytes(&self, bytes: &[u8]) -> Result<ReaderFeed> {
 		let mut acc = Vec::new();
 		for reader in self.readers.as_slice() {
