@@ -17,7 +17,12 @@ use ulid::Ulid;
 impl <Persistence> RussetDomainService<Persistence>
 where Persistence: RussetUserPersistenceLayer {
 
-	pub async fn login_user(&self, user_name: String, plaintext_password: String) -> Result<Option<Session>> {
+	pub async fn login_user(
+		&self,
+		user_name: String,
+		plaintext_password: String,
+		permanent_session: bool,
+	) -> Result<Option<Session>> {
 		let password_hash = Argon2::new_with_secret(
 				self.pepper.as_slice(),
 				argon2::Algorithm::Argon2id,
@@ -32,7 +37,15 @@ where Persistence: RussetUserPersistenceLayer {
 				match password_hash.verify_password(&password_bytes, &parsed_hash) {
 					Ok(_) => {
 						let token = Self::generate_token()?;
-						let expiration = Timestamp::new(SystemTime::now() + Duration::new(3_600, 0));
+						let session_duration = if permanent_session {
+							// Gigasecond is > 30 years. Should be long enough.
+							Duration::from_secs(1_000_000_000)
+						} else {
+							// Otherwise, we'll expire in a week (but set a
+							// session cookie)
+							Duration::from_secs(7 * 24 * 60 * 60)
+						};
+						let expiration = Timestamp::new(SystemTime::now() + session_duration);
 						let session = Session {
 							token,
 							user_id: user.id,
@@ -108,7 +121,16 @@ where Persistence: RussetUserPersistenceLayer {
 
 	pub async fn auth_user(&self, token: &str) -> Result<Option<User>> {
 		match self.persistence.get_user_by_session(&token).await? {
-			Some((user, _session)) => Ok(Some(user)),
+			Some((user, session)) => {
+				if session.expiration.0 < SystemTime::now() {
+					// If the session expired, clear it and fail the auth
+					info!("Session {:?} expired, removing…", session.token);
+					self.persistence.delete_session(&session.token.0).await?;
+					Ok(None)
+				} else {
+					Ok(Some(user))
+				}
+			},
 			None => Ok(None)
 		}
 	}

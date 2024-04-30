@@ -91,7 +91,8 @@ pub trait RussetUserPersistenceLayer: Send + Sync + std::fmt::Debug + 'static {
 	fn get_user_by_session(&self, session_token: &str)
 		-> impl Future<Output = Result<Option<(User, Session)>>> + Send;
 
-	async fn delete_session(&self, session_token: &str) -> Result<()>;
+	fn delete_session(&self, session_token: &str)
+		-> impl Future<Output = Result<()>> + Send;
 
 	async fn delete_sessions_for_user(&self, user_id: &UserId) -> Result<u32>;
 

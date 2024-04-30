@@ -6,6 +6,8 @@
 					<input type="text" name="user_name" />
 					<label for="plaintext_password">Password:</label>
 					<input type="password" name="plaintext_password" />
+					<label for="permanent_session">Stay logged in</label>
+					<input type="checkbox" name="permanent_session" value="true"/>
 				</div><%
 	if redirect_to != None {
 	%>

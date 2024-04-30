@@ -82,6 +82,9 @@ td.center {
 	margin: 0.5em;
 	border-radius: 0.25em;
 }
+.dialog input[type=checkbox] {
+	width: fit-content;
+}
 .dialog .inputs {
 	display: grid;
 	grid-template-columns: 30% 70%;

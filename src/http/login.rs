@@ -1,5 +1,5 @@
 use axum::extract::{ Form, State };
-use axum_extra::extract::cookie::{ Cookie, CookieJar };
+use axum_extra::extract::cookie::{ Cookie, CookieJar, Expiration };
 use axum::http::StatusCode;
 use axum::response::{ Html, Redirect };
 use crate::http::AppState;
@@ -43,13 +43,18 @@ pub struct LoginRequest {
 	user_name: String,
 	plaintext_password: String,
 	redirect_to: Option<String>,
+	#[serde(default = "default_permanent_session")]
+	permanent_session: bool,
 }
+// This is dumb.
+fn default_permanent_session() -> bool { false }
 impl std::fmt::Debug for LoginRequest {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("LoginRequest")
 			.field("user_name", &self.user_name)
 			.field("plaintext_password", &"<redacted>")
 			.field("redirect_to", &self.redirect_to)
+			.field("permanent_session", &self.permanent_session)
 			.finish()
 	}
 }
@@ -60,12 +65,29 @@ pub async fn login_user<Persistence>(
 	Form(login): Form<LoginRequest>,
 ) -> Result<(CookieJar, Redirect), StatusCode>
 where Persistence: RussetPersistenceLayer {
-	let session = state.domain_service.login_user(login.user_name, login.plaintext_password).await;
+	let session = state.domain_service
+		.login_user(
+			login.user_name,
+			login.plaintext_password,
+			login.permanent_session,
+		)
+		.await;
 	match session {
-		Ok(Some(session)) => Ok((
-			cookies.add(Cookie::new("session_id", session.token.0)),
-			Redirect::to(&login.redirect_to.unwrap_or("/".to_string())),
-		)),
+		Ok(Some(session)) => {
+			let cookie = Cookie::build(("session_id", session.token.0))
+				.expires(
+					if login.permanent_session {
+						Expiration::DateTime(session.expiration.0.into())
+					} else {
+						Expiration::Session
+					}
+				)
+				.build();
+			Ok((
+				cookies.add(cookie),
+				Redirect::to(&login.redirect_to.unwrap_or("/".to_string())),
+			))
+		},
 		Ok(None) => Err(StatusCode::UNAUTHORIZED),
 		Err(e) => {
 			error!(error = e.as_ref());
