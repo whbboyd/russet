@@ -26,7 +26,6 @@ The following features are not yet supported, but will be soon.
 
  * External database support. Currently, Russet only supports SQLite for
 	persistent storage, but support for at least PostgreSQL will be added.
- * Config file support
  * User management through the web UI
 
 ## License
