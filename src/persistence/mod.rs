@@ -29,7 +29,7 @@ pub trait RussetFeedPersistenceLayer: Send + Sync + std::fmt::Debug + 'static {
 		> + Send;
 
 	/// Get a specific [Feed] by ID
-	async fn get_feed(&self, id: &FeedId) -> Result<Feed>;
+	fn get_feed(&self, id: &FeedId) -> impl Future<Output = Result<Feed>> + Send;
 
 	/// Get a specific [Feed] by URL
 	fn get_feed_by_url(&self, url: &Url)
@@ -97,5 +97,8 @@ pub trait RussetUserPersistenceLayer: Send + Sync + std::fmt::Debug + 'static {
 	async fn delete_sessions_for_user(&self, user_id: &UserId) -> Result<u32>;
 
 	fn add_subscription(&self, user_id: &UserId, feed_id: &FeedId)
+		-> impl Future<Output = Result<()>> + Send;
+
+	fn remove_subscription(&self, user_id: &UserId, feed_id: &FeedId)
 		-> impl Future<Output = Result<()>> + Send;
 }

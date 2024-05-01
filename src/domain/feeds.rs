@@ -81,6 +81,19 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 			.collect()
 	}
 
+	pub async fn get_feed(&self, feed_id: &FeedId) -> Result<Feed> {
+		self.persistence
+			.get_feed(feed_id)
+			.await
+			.map(|feed| {
+				Feed {
+					id: feed.id,
+					url: feed.url.to_string(),
+					title: feed.title,
+				}
+			} )
+	}
+
 	/// Update the persistence layer with `feed` (at fetch `fetch_index`)
 	async fn update_feed(&self, feed: &PersistenceFeed, fetch_index: u32) -> Result<()> {
 		let bytes = reqwest::get(feed.url.clone())

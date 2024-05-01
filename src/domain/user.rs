@@ -139,6 +139,10 @@ where Persistence: RussetUserPersistenceLayer {
 		self.persistence.add_subscription(user_id, feed_id).await
 	}
 
+	pub async fn unsubscribe(&self, user_id: &UserId, feed_id: &FeedId) -> Result<()> {
+		self.persistence.remove_subscription(user_id, feed_id).await
+	}
+
 	fn generate_token() -> Result<SessionToken> {
 		let mut bytes = [0u8; 32];
 		getrandom(&mut bytes)?;

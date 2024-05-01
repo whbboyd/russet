@@ -19,23 +19,24 @@ for (i, entry) in entries.iter().enumerate() {
 %>
 				<tr<%- classes %>>
 					<td class="center"><input type="checkbox" name="select-<%= entry.id.to_string() %>" /></td>
-					<td><a href="entry/<%= entry.id.to_string() %>"><%= entry.title %></a></td>
+					<td><a href="<%- relative_root %>entry/<%- entry.id.to_string() %>"><%= entry.title %></a></td>
 					<td class="center"><%= entry.article_date %></td>
-					<td class="center"><a href="feed/<%= entry.feed_id.to_string() %>"><%=
+					<td class="center"><a href="<%- relative_root %>feed/<%= entry.feed_id.to_string() %>"><%=
 match feeds.get(&entry.feed_id) {
 	Some(feed) => feed.title.clone(),
 	None => "Unknown Feed".to_string(),
 }
 %></a></td>
-				</tr>
-				<% } %>
+				</tr><%
+}
+%>
 			</tbody>
 		</table></form>
 		<div>Page:
-			<% if page_num > 1 { %><a href="?page_num=0">1</a>…<% } %>
-			<% if page_num > 0 { %><a href="?page_num=<%- page_num - 1 %>"><%- page_num %></a><% } %>
+			<% if page_num > 1 { %><a href="<%- relative_root %>?page_num=0">1</a>…<% } %>
+			<% if page_num > 0 { %><a href="<%- relative_root %>?page_num=<%- page_num - 1 %>"><%- page_num %></a><% } %>
 			<%- page_num + 1 %>
-			<a href="?page_num=<%- page_num + 1 %>"><%- page_num + 2 %></a>
+			<a href="<%- relative_root %>?page_num=<%- page_num + 1 %>"><%- page_num + 2 %></a>
 		</div>
-		<div><a href="/subscribe">Subscribe</a></div>
+		<div><a href="<%- relative_root %>/subscribe">Subscribe</a></div>
 <% include!("foot.stpl"); %>

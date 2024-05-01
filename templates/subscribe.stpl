@@ -1,6 +1,6 @@
 <% include!("head.stpl"); %>
 		<div style="display: flex; justify-content: center;">
-			<form action="/subscribe" method="post" class="dialog">
+			<form action="<%- relative_root %>subscribe" method="post" class="dialog">
 				<div class="inputs">
 					<label for="url">Feed Url:</label>
 					<input type="text" name="url"/>

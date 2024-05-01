@@ -1,6 +1,6 @@
 <% include!("head.stpl"); %>
 		<div style="display: flex; justify-content: center;">
-			<form action="/login" method="post" class="dialog">
+			<form action="<%- relative_root %>login" method="post" class="dialog">
 				<div class="inputs">
 					<label for="user_name">User name:</label>
 					<input type="text" name="user_name" />

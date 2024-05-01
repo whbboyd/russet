@@ -1,0 +1,12 @@
+<% include!("head.stpl"); %>
+		<p><%= feed.title %></p>
+		<p>Feed URL: <a href="<%- feed.url %>"><%= feed.url %></a></p>
+		<div style="display: flex; justify-content: center;">
+			<form action="<%- relative_root %>feed/<%- feed.id.to_string() %>" method="post" class="dialog">
+				<div class="controls">
+					<input type="submit" value = "Unsubscribe" />
+				</div>
+			</form>
+		</div>
+<% include!("foot.stpl"); %>
+

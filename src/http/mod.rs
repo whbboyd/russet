@@ -14,6 +14,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 mod entry;
+mod feed;
 mod login;
 mod session;
 mod static_routes;
@@ -26,7 +27,7 @@ where Persistence: RussetPersistenceLayer {
 		.route("/login", get(login::login_page).post(login::login_user))
 		.route("/", get(home))
 		.route("/entry/:id", get(entry::mark_read_redirect))
-		.route("/feed/:id", get(|| async { "Feed page!" }))
+		.route("/feed/:id", get(feed::feed_page).post(feed::unsubscribe))
 		.route("/subscribe", get(subscribe::subscribe_page).post(subscribe::subscribe))
 		.route("/*any", any(|| async { Redirect::to("/") }))
 }
@@ -80,7 +81,7 @@ where Persistence: RussetPersistenceLayer {
 		.map(|feed| (feed.id.clone(), feed))
 		.collect::<HashMap<FeedId, Feed>>();
 	Html(
-		HomePageTemplate{
+		HomePageTemplate {
 			user: Some(&user.user),
 			entries: entries.as_slice(),
 			feeds: &feeds,

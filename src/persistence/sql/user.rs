@@ -189,4 +189,20 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 			.await?;
 		Ok(())
 	}
+
+	#[tracing::instrument]
+	async fn remove_subscription(&self, user_id: &UserId, feed_id: &FeedId) -> Result<()> {
+		let feed_id = feed_id.to_string();
+		let user_id = user_id.to_string();
+		sqlx::query!("
+				DELETE FROM subscriptions
+				WHERE user_id = ? AND feed_id = ?
+				",
+				user_id,
+				feed_id,
+			)
+			.execute(&self.pool)
+			.await?;
+		Ok(())
+	}
 }
