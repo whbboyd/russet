@@ -1,4 +1,4 @@
-use crate::model::{ FeedId, UserId };
+use crate::model::{ FeedId, Timestamp, UserId };
 use crate::persistence::model::{ PasswordHash, Session, SessionToken, User };
 use crate::persistence::RussetUserPersistenceLayer;
 use crate::persistence::sql::SqlDatabase;
@@ -145,7 +145,7 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 	async fn delete_session(&self, session_token: &str) -> Result<()> {
 		let rows = sqlx::query!("
 				DELETE FROM sessions
-				WHERE token = ?",
+				WHERE token = ?;",
 				session_token,
 			)
 			.execute(&self.pool)
@@ -159,11 +159,25 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 	}
 
 	#[tracing::instrument]
+	async fn delete_expired_sessions(&self, expiry: &Timestamp) -> Result<()> {
+		let expiry = TryInto::<i64>::try_into(expiry.clone())?;
+		sqlx::query!("
+				DELETE FROM sessions
+				wHERE expiration < ?;",
+				expiry,
+			)
+			.execute(&self.pool)
+			.await?
+			.rows_affected();
+		Ok(())
+	}
+
+	#[tracing::instrument]
 	async fn delete_sessions_for_user(&self, user_id: &UserId) -> Result<u32> {
 		let user_id = user_id.to_string();
 		let rows = sqlx::query!("
 				DELETE FROM sessions
-				WHERE user_id = ?",
+				WHERE user_id = ?;",
 				user_id,
 			)
 			.execute(&self.pool)

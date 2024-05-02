@@ -118,6 +118,11 @@ where Persistence: RussetUserPersistenceLayer {
 		self.persistence.delete_sessions_for_user(&user.id).await?;
 		Ok(())
 	}
+	
+	pub async fn  cleanup_expired_sessions(&self) -> Result<()> {
+		let expiry = Timestamp::new(SystemTime::now());
+		self.persistence.delete_expired_sessions(&expiry).await
+	}
 
 	pub async fn auth_user(&self, token: &str) -> Result<Option<User>> {
 		match self.persistence.get_user_by_session(&token).await? {

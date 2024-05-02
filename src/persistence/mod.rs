@@ -2,7 +2,7 @@ pub mod model;
 pub mod sql;
 
 use crate::Result;
-use crate::model::{ EntryId, FeedId, Pagination, UserId };
+use crate::model::{ EntryId, FeedId, Pagination, Timestamp, UserId };
 use model::{ Entry, Feed, Session, User, UserEntry };
 use reqwest::Url;
 use std::future::Future;
@@ -92,6 +92,9 @@ pub trait RussetUserPersistenceLayer: Send + Sync + std::fmt::Debug + 'static {
 		-> impl Future<Output = Result<Option<(User, Session)>>> + Send;
 
 	fn delete_session(&self, session_token: &str)
+		-> impl Future<Output = Result<()>> + Send;
+	
+	fn delete_expired_sessions(&self, expiry: &Timestamp)
 		-> impl Future<Output = Result<()>> + Send;
 
 	async fn delete_sessions_for_user(&self, user_id: &UserId) -> Result<u32>;
