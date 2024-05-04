@@ -45,9 +45,15 @@ where Persistence: RussetPersistenceLayer {
 	let routes = russet_router()
 		.with_state(app_state);
 	let listener = tokio::net::TcpListener::bind(&listen).await?;
+	let graceful_exit_signal = async {
+		tokio::signal::ctrl_c().await.expect("Failed to register interrupt handler");
+		info!("Received interrupt, exiting…");
+	};
 	info!("Initialization complete, serving requests!");
 	info!("Listening on {listen}…");
-	axum::serve(listener, routes).await?;
+	axum::serve(listener, routes)
+		.with_graceful_shutdown(graceful_exit_signal)
+		.await?;
 	info!("Exiting {}…", crate::APP_NAME);
 	Ok(())
 }
