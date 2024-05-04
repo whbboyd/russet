@@ -1,6 +1,6 @@
 [package]
 name = "russet"
-version = "0.9.1"
+version = "0.9.2"
 edition = "2021"
 license = "AGPL-3.0"
 
@@ -27,7 +27,9 @@ tokio = { version = "1.36", features = ["full"] }
 # Database interface
 sqlx = { version = "0.7", features = ["sqlite", "migrate", "runtime-tokio-native-tls"] }
 
-# Used for CLI
+# Configuration (general/config file/CLI)
+merge = "0.1"
+toml = "0.8"
 clap = { version = "4.5", features = ["derive"] }
 rpassword = "7.3"
 
@@ -47,8 +49,6 @@ sailfish = "0.8"
 tracing = { version = "0.1", features = ["log"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
-# Config file
-toml = "0.8"
 
 # Serde is used for all sorts of stuff
 serde = "1.0"

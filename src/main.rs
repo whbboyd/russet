@@ -4,7 +4,6 @@ extern crate rss;
 extern crate sqlx;
 extern crate tokio;
 
-mod cli;
 mod conf;
 mod domain;
 mod feed;
@@ -14,14 +13,14 @@ mod server;
 mod model;
 
 use clap::Parser;
-use crate::cli::{ Cli, Command };
-use crate::conf::Config;
+use crate::conf::{ Command, Config };
 use crate::domain::RussetDomainService;
 use crate::feed::atom::AtomFeedReader;
 use crate::feed::rss::RssFeedReader;
 use crate::feed::RussetFeedReader;
 use crate::persistence::sql::SqlDatabase;
 use crate::server::start;
+use merge::Merge;
 use rpassword::prompt_password;
 use std::error::Error;
 use std::fs::read_to_string;
@@ -46,19 +45,29 @@ pub type Result<T> = std::result::Result<T, Err>;
 async fn main() -> Result<()> {
 	init_tracing();
 
-	let cli = Cli::parse();
+	// Hierarchy of configs
+	let config = {
+		// Commandline flags override all
+		let mut config = Config::parse();
 
-	let config = match cli.config_file {
-		Some(file_name) => {
-			let s = read_to_string(file_name)?;
-			toml::from_str(&s)?
-		},
-		None => Config::default(),
+		// If present, load config
+		if let Some(&ref config_file) = config.config_file.as_ref() {
+				let s = read_to_string(config_file)?;
+				let file_config = toml::from_str(&s)?;
+				config.merge(file_config);
+		}
+
+		// Finally, load defaults
+		config.merge(Config::default());
+
+		config
 	};
 
-	let db_file = cli.db_file.unwrap_or(config.db_file);
-	let listen_address = cli.listen_address.unwrap_or(config.listen);
-	let feed_check_interval = cli.feed_check_interval.unwrap_or(config.feed_check_interval);
+	let command = config.command.expect("No command");
+	let db_file = config.db_file.expect("No db_file");
+	let listen_address = config.listen_address.expect("No listen_address");
+	let pepper = config.pepper.expect("No pepper");
+	let feed_check_interval = config.feed_check_interval.expect("No feed_check_interval");
 
 	let db = SqlDatabase::new(Path::new(&db_file)).await?;
 	let readers: Vec<Box<dyn RussetFeedReader>> = vec![
@@ -68,13 +77,13 @@ async fn main() -> Result<()> {
 	let domain_service = Arc::new(RussetDomainService::new(
 		db,
 		readers,
-		config.pepper.as_bytes().to_vec(),
+		pepper.as_bytes().to_vec(),
 		feed_check_interval,
 	)?);
 
-	match cli.command {
-		None | Some(Command::Run) => start(domain_service, listen_address).await?,
-		Some(Command::AddUser { user_name, password }) => {
+	match command {
+		Command::Run => start(domain_service, listen_address).await?,
+		Command::AddUser { user_name, password } => {
 			info!("Adding user {user_name}…");
 			let plaintext_password = match password {
 				Some(password) => password,
@@ -82,7 +91,7 @@ async fn main() -> Result<()> {
 			};
 			domain_service.add_user(&user_name, &plaintext_password).await?;
 		},
-		Some(Command::SetUserPassword { user_name, password }) => {
+		Command::SetUserPassword { user_name, password } => {
 			info!("Setting password for user {user_name}…");
 			let plaintext_password = match password {
 				Some(password) => password,
@@ -92,11 +101,11 @@ async fn main() -> Result<()> {
 				.set_user_password(&user_name, &plaintext_password)
 				.await?;
 		},
-		Some(Command::DeleteUser { user_name }) => {
+		Command::DeleteUser { user_name } => {
 			info!("Deleting user {user_name}…");
 			domain_service.delete_user(&user_name).await?;
 		}
-		Some(Command::DeleteSessions { user_name }) => {
+		Command::DeleteSessions { user_name } => {
 			info!("Delete sessions for {user_name}…");
 			domain_service.delete_user_sessions(&user_name).await?;
 		}
