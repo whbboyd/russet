@@ -11,6 +11,8 @@ const SESSION_CLEANUP_INTERVAL: Duration = Duration::from_secs(3_600);
 pub async fn start<Persistence>(
 	domain_service: Arc<RussetDomainService<Persistence>>,
 	listen: String,
+	global_concurrent_limit: u32,
+	login_concurrent_limit: u32,
 ) -> Result<()>
 where Persistence: RussetPersistenceLayer {
 	info!("Starting {}…", crate::APP_NAME);
@@ -40,9 +42,9 @@ where Persistence: RussetPersistenceLayer {
 		}
 	} );
 
-	// Setup for Axum
+	// Start the HTTP server
 	let app_state = AppState { domain_service: domain_service.clone() };
-	let routes = russet_router()
+	let routes = russet_router(global_concurrent_limit, login_concurrent_limit)
 		.with_state(app_state);
 	let listener = tokio::net::TcpListener::bind(&listen).await?;
 	let graceful_exit_signal = async {

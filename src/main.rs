@@ -67,7 +67,16 @@ async fn main() -> Result<()> {
 	let db_file = config.db_file.expect("No db_file");
 	let listen_address = config.listen_address.expect("No listen_address");
 	let pepper = config.pepper.expect("No pepper");
-	let feed_check_interval = config.feed_check_interval.expect("No feed_check_interval");
+	let feed_check_interval =
+		config.feed_check_interval.expect("No feed_check_interval");
+	let global_concurrent_limit = config
+		.rate_limiting
+		.global_concurrent_limit
+		.expect("No global_concurrent_limit");
+	let login_concurrent_limit = config
+		.rate_limiting
+		.login_concurrent_limit
+		.expect("No login_concurrent_limit");
 
 	let db = SqlDatabase::new(Path::new(&db_file)).await?;
 	let readers: Vec<Box<dyn RussetFeedReader>> = vec![
@@ -82,7 +91,13 @@ async fn main() -> Result<()> {
 	)?);
 
 	match command {
-		Command::Run => start(domain_service, listen_address).await?,
+		Command::Run => start(
+				domain_service,
+				listen_address,
+				global_concurrent_limit,
+				login_concurrent_limit
+			)
+			.await?,
 		Command::AddUser { user_name, password } => {
 			info!("Adding user {user_name}…");
 			let plaintext_password = match password {

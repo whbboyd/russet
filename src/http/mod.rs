@@ -1,7 +1,7 @@
 use axum::extract::{ Form, State };
 use axum::response::{ Html, Redirect };
 use axum::Router;
-use axum::routing::{ any, get };
+use axum::routing::{ any, get, post };
 use crate::domain::model::{ Entry, Feed };
 use crate::domain::RussetDomainService;
 use crate::http::session::AuthenticatedUser;
@@ -12,6 +12,8 @@ use sailfish::TemplateOnce;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::Arc;
+use tokio::sync::Semaphore;
+use tower::limit::GlobalConcurrencyLimitLayer;
 
 mod entry;
 mod feed;
@@ -20,16 +22,24 @@ mod session;
 mod static_routes;
 mod subscribe;
 
-pub fn russet_router<Persistence>() -> Router<AppState<Persistence>>
+pub fn russet_router<Persistence>(
+	global_concurrent_limit: u32,
+	login_concurrent_limit: u32,
+) -> Router<AppState<Persistence>>
 where Persistence: RussetPersistenceLayer {
+	let global_limit_semaphore = Arc::new(Semaphore::new(global_concurrent_limit.try_into().unwrap()));
+	let login_limit_sempahore = Arc::new(Semaphore::new(login_concurrent_limit.try_into().unwrap()));
 	Router::new()
+		.route("/login", post(login::login_user))
+		.layer(GlobalConcurrencyLimitLayer::with_semaphore(login_limit_sempahore))
+		.route("/login", get(login::login_page))
 		.route("/styles.css", get(static_routes::styles))
-		.route("/login", get(login::login_page).post(login::login_user))
 		.route("/", get(home))
 		.route("/entry/:id", get(entry::mark_read_redirect))
 		.route("/feed/:id", get(feed::feed_page).post(feed::unsubscribe))
 		.route("/subscribe", get(subscribe::subscribe_page).post(subscribe::subscribe))
 		.route("/*any", any(|| async { Redirect::to("/") }))
+		.layer(GlobalConcurrencyLimitLayer::with_semaphore(global_limit_semaphore))
 }
 
 #[derive(Debug)]
