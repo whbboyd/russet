@@ -50,7 +50,7 @@ async fn main() -> Result<()> {
 		// Commandline flags override all
 		let mut config = Config::parse();
 
-		// If present, load config
+		// If present, load config file
 		if let Some(&ref config_file) = config.config_file.as_ref() {
 				let s = read_to_string(config_file)?;
 				let file_config = toml::from_str(&s)?;
@@ -69,6 +69,7 @@ async fn main() -> Result<()> {
 	let pepper = config.pepper.expect("No pepper");
 	let feed_check_interval =
 		config.feed_check_interval.expect("No feed_check_interval");
+	let disable_logins = config.disable_logins.expect("No disable_logins");
 	let global_concurrent_limit = config
 		.rate_limiting
 		.global_concurrent_limit
@@ -88,6 +89,7 @@ async fn main() -> Result<()> {
 		readers,
 		pepper.as_bytes().to_vec(),
 		feed_check_interval,
+		disable_logins,
 	)?);
 
 	match command {

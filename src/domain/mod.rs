@@ -15,6 +15,7 @@ where Persistence: std::fmt::Debug {
 	readers: Vec<Box<dyn RussetFeedReader>>,
 	pepper: Vec<u8>,
 	pub feed_check_interval: Duration,
+	disable_logins: bool,
 }
 impl <Persistence> RussetDomainService<Persistence>
 where Persistence: std::fmt::Debug {
@@ -23,6 +24,7 @@ where Persistence: std::fmt::Debug {
 		readers: Vec<Box<dyn RussetFeedReader>>,
 		pepper: Vec<u8>,
 		feed_check_interval: Duration,
+		disable_logins: bool,
 	) -> Result<RussetDomainService<Persistence>> {
 		if feed_check_interval < MIN_CHECK_INTERVAL {
 			let interval = feed_check_interval.as_secs_f64();
@@ -35,6 +37,7 @@ where Persistence: std::fmt::Debug {
 			readers,
 			pepper,
 			feed_check_interval,
+			disable_logins,
 		} )
 	}
 }
@@ -45,6 +48,8 @@ where Persistence: std::fmt::Debug {
 			.field("persistence", &self.persistence)
 			.field("readers", &self.readers)
 			.field("pepper", &"<redacted>")
+			.field("feed_check_interva", &self.feed_check_interval)
+			.field("disable_logins", &self.disable_logins)
 			.finish()
 	}
 }

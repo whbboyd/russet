@@ -57,10 +57,15 @@ pub trait RussetEntryPersistenceLayer: Send + Sync + std::fmt::Debug + 'static {
 	fn get_and_increment_fetch_index(&self)
 		-> impl Future<Output = Result<u32>> + Send;
 
-	/// get all the entries for all the feeds to which the given user is subscribed.
+	/// Get entries for all the feeds to which the given user is subscribed.
 	fn get_entries_for_user(&self, user_id: &UserId, pagination: &Pagination)
 		-> impl Future<Output = impl IntoIterator<Item = Result<(Entry, Option<UserEntry>)>>> + Send;
 
+	/// Get entries for the given feed to which the given user is subscribed
+	fn get_entries_for_user_feed(&self, user_id: &UserId, feed_id: &FeedId, pagination: &Pagination)
+		-> impl Future<Output = impl IntoIterator<Item = Result<(Entry, Option<UserEntry>)>>> + Send;
+
+	/// Atomically get an entry and set the userentry for the given entry and user.
 	fn get_entry_and_set_userentry(
 		&self,
 		entry_id: &EntryId,

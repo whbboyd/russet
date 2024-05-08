@@ -186,6 +186,17 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 	}
 
 	#[tracing::instrument]
+	async fn get_entries_for_user_feed(
+		&self,
+		user_id: &UserId,
+		feed_id: &FeedId,
+		pagination: &Pagination,
+	) -> impl IntoIterator<Item = Result<(Entry, Option<UserEntry>)>> {
+		todo!();
+		vec![]
+	}
+
+	#[tracing::instrument]
 	async fn get_entry_and_set_userentry(
 		&self,
 		entry_id: &EntryId,

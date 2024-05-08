@@ -44,8 +44,17 @@ pub struct Config {
 	)]
 	pub feed_check_interval: Option<Duration>,
 
+	/// Disable logins.
+	///
+	/// This option will go away once more robust rate-limiting of the login
+	/// endpoint is available. For now, it's a quick toggle to prevent
+	/// credential stuffing or resource exhaustion attacks.
+	#[arg(long)]
+	pub disable_logins: Option<bool>,
+
 	#[command(flatten)]
 	pub rate_limiting: RateLimitingConfig,
+
 }
 impl Default for Config {
 	fn default() -> Self {
@@ -56,6 +65,7 @@ impl Default for Config {
 			listen_address: Some("127.0.0.1:9892".to_string()),
 			pepper: Some("IzvoEPMQIi82NSXTz7cZ".to_string()),
 			feed_check_interval: Some(Duration::from_secs(3_600)),
+			disable_logins: Some(false),
 			rate_limiting: RateLimitingConfig::default(),
 		}
 	}

@@ -23,6 +23,7 @@ where Persistence: RussetUserPersistenceLayer {
 		plaintext_password: String,
 		permanent_session: bool,
 	) -> Result<Option<Session>> {
+		if self.disable_logins { return Ok(None) }
 		let password_hash = Argon2::new_with_secret(
 				self.pepper.as_slice(),
 				argon2::Algorithm::Argon2id,
