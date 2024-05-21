@@ -113,76 +113,7 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 		user_id: &UserId,
 		pagination: &Pagination,
 	) -> Vec<Result<(Entry, Option<UserEntry>)>> {
-		let user_id_str = user_id.to_string();
-		let page_size: i64 = match pagination.page_size.try_into() {
-			Ok(i) => i,
-			Err(e) => return vec![Err(e.into())]
-		};
-		let page_offset: i64 = match (pagination.page_num * pagination.page_size).try_into() {
-			Ok(i) => i,
-			Err(e) => return vec![Err(e.into())]
-		};
-		// TODO: Maybe do paging later. Or figure out how to stream from sqlx.
-		let rows = sqlx::query!(r#"
-				SELECT
-					e.id AS "id!",
-					e.feed_id AS "feed_id!",
-					e.internal_id AS "internal_id!",
-					e.fetch_index AS "fetch_index!",
-					e.article_date AS "article_date!",
-					e.title AS "title!",
-					e.url,
-					u.user_id AS "user_entry_user_id",
-					u.read,
-					u.tombstone
-				FROM entries AS e
-				INNER JOIN subscriptions AS s
-					ON e.feed_id = s.feed_id
-				LEFT OUTER JOIN user_entry_settings AS u
-					ON s.user_id = u.user_id AND e.id = u.entry_id
-				WHERE s.user_id = ?
-				ORDER BY fetch_index DESC, article_date DESC
-				LIMIT ?
-				OFFSET ?;"#,
-				user_id_str,
-				page_size,
-				page_offset,
-			)
-			.fetch_all(&self.pool)
-			.await;
-		let rv: Vec<Result<(Entry, Option<UserEntry>)>> = match rows {
-			Ok(rows) => {
-				rows.into_iter().map(|row| {
-					let id = EntryId(Ulid::from_string(&row.id)?);
-					let feed_id = FeedId(Ulid::from_string(&row.feed_id)?);
-					let url = row.url.map(|url| Url::parse(&url)).transpose()?;
-					let entry = Entry {
-						id,
-						feed_id,
-						internal_id: row.internal_id,
-						fetch_index: row.fetch_index as u32,
-						article_date: row.article_date.into(),
-						title: row.title,
-						url,
-					};
-					let user_entry = if row.user_entry_user_id.is_some() {
-						Some(UserEntry {
-							read: row.read.map(|read| read.into()),
-							tombstone: row.tombstone.map(|tombstone| tombstone.into()),
-						} )
-					} else {
-						None
-					};
-					Ok( (
-						entry,
-						user_entry,
-					) )
-				} )
-					.collect()
-			},
-			Err(e) => vec![Err(Box::new(e))],
-		};
-		rv
+		self.get_userentries(user_id, None, None, pagination).await
 	}
 
 	#[tracing::instrument]
@@ -192,8 +123,7 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 		feed_id: &FeedId,
 		pagination: &Pagination,
 	) -> impl IntoIterator<Item = Result<(Entry, Option<UserEntry>)>> {
-		todo!();
-		vec![]
+		self.get_userentries(user_id, Some(feed_id), None, pagination).await
 	}
 
 	#[tracing::instrument]
@@ -250,5 +180,102 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 			title: row.title,
 			url,
 		} )
+	}
+}
+
+impl SqlDatabase {
+	/// Helper for entry/user_entry fetching.
+	async fn get_userentries(
+		&self,
+		user_id: &UserId,
+		feed_id: Option<&FeedId>,
+		entry_id: Option<&EntryId>,
+		pagination: &Pagination,
+	) -> Vec<Result<(Entry, Option<UserEntry>)>> {
+		let user_id_str = user_id.to_string();
+		let no_feed = feed_id.is_none();
+		let feed_id_str = feed_id.map(|id| id.to_string());
+		let no_entry = entry_id.is_none();
+		let entry_id_str = entry_id.map(|id| id.to_string());
+		let page_size: i64 = match pagination.page_size.try_into() {
+			Ok(i) => i,
+			Err(e) => return vec![Err(e.into())]
+		};
+		let page_offset: i64 = match (pagination.page_num * pagination.page_size).try_into() {
+			Ok(i) => i,
+			Err(e) => return vec![Err(e.into())]
+		};
+		// TODO: Maybe do paging later. Or figure out how to stream from sqlx.
+
+		// This query is this way because in order to pass it to query!, it must
+		// be a &'static str, which means no dynamically-added query clauses.
+		// The (? OR id = ?) clauses allow us to skip these checks if we weren't
+		// provied an ID to check against.
+		let rows = sqlx::query!(r#"
+				SELECT
+					e.id AS "id!",
+					e.feed_id AS "feed_id!",
+					e.internal_id AS "internal_id!",
+					e.fetch_index AS "fetch_index!",
+					e.article_date AS "article_date!",
+					e.title AS "title!",
+					e.url,
+					u.user_id AS "user_entry_user_id",
+					u.read,
+					u.tombstone
+				FROM entries AS e
+				INNER JOIN subscriptions AS s
+					ON e.feed_id = s.feed_id
+				LEFT OUTER JOIN user_entry_settings AS u
+					ON s.user_id = u.user_id AND e.id = u.entry_id
+				WHERE s.user_id = ?
+					AND (? OR s.feed_id = ?)
+					AND (? OR e.id = ?)
+				ORDER BY fetch_index DESC, article_date DESC
+				LIMIT ?
+				OFFSET ?;"#,
+				user_id_str,
+				no_feed,
+				feed_id_str,
+				no_entry,
+				entry_id_str,
+				page_size,
+				page_offset,
+			)
+			.fetch_all(&self.pool)
+			.await;
+		let rv: Vec<Result<(Entry, Option<UserEntry>)>> = match rows {
+			Ok(rows) => {
+				rows.into_iter().map(|row| {
+					let id = EntryId(Ulid::from_string(&row.id)?);
+					let feed_id = FeedId(Ulid::from_string(&row.feed_id)?);
+					let url = row.url.map(|url| Url::parse(&url)).transpose()?;
+					let entry = Entry {
+						id,
+						feed_id,
+						internal_id: row.internal_id,
+						fetch_index: row.fetch_index as u32,
+						article_date: row.article_date.into(),
+						title: row.title,
+						url,
+					};
+					let user_entry = if row.user_entry_user_id.is_some() {
+						Some(UserEntry {
+							read: row.read.map(|read| read.into()),
+							tombstone: row.tombstone.map(|tombstone| tombstone.into()),
+						} )
+					} else {
+						None
+					};
+					Ok( (
+						entry,
+						user_entry,
+					) )
+				} )
+					.collect()
+			},
+			Err(e) => vec![Err(Box::new(e))],
+		};
+		rv
 	}
 }
