@@ -1,5 +1,6 @@
 use axum::extract::{ Form, State };
-use axum::response::{ Html, Redirect };
+use axum::middleware::map_response;
+use axum::response::{ Html, Redirect, Response };
 use axum::Router;
 use axum::routing::{ any, get, post };
 use crate::domain::model::{ Entry, Feed };
@@ -41,9 +42,21 @@ where Persistence: RussetPersistenceLayer {
 		.route("/subscribe", get(subscribe::subscribe_page).post(subscribe::subscribe))
 		.route("/*any", any(|| async { Redirect::to("/") }))
 		.layer(GlobalConcurrencyLimitLayer::with_semaphore(global_limit_semaphore))
+		.layer(map_response(csp_header))
 		.layer(CompressionLayer::new())
 }
 
+async fn csp_header<B>(mut response: Response<B>) -> Response<B> {
+	response
+		.headers_mut()
+		.insert(
+			"Content-Security-Policy",
+			"script-source none".parse().unwrap(),
+		);
+	response
+}
+
+// Application state
 #[derive(Debug)]
 pub struct AppState<Persistence>
 where Persistence: RussetPersistenceLayer {
@@ -54,6 +67,7 @@ where Persistence: RussetPersistenceLayer {
 	fn clone(&self) -> Self { AppState { domain_service: self.domain_service.clone() } }
 }
 
+// Home (root) page template
 #[derive(TemplateOnce)]
 #[template(path = "home.stpl")]
 struct HomePageTemplate<'a> {
