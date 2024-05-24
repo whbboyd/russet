@@ -1,7 +1,10 @@
 <% include!("head.stpl"); %>
 		<form><table>
 			<thead class="alt"><tr>
-				<th scope="col"><input type="checkbox" name="select-all" /></th>
+				<th scope="col">
+					<label for="select-all">All</label>
+					<input type="checkbox" name="select-all" />
+				</th>
 				<th scope="col">Title</th>
 				<th scope="col">Date</th>
 				<th scope="col">Feed</th>

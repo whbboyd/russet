@@ -48,7 +48,7 @@ where Persistence: std::fmt::Debug {
 			.field("persistence", &self.persistence)
 			.field("readers", &self.readers)
 			.field("pepper", &"<redacted>")
-			.field("feed_check_interva", &self.feed_check_interval)
+			.field("feed_check_interval", &self.feed_check_interval)
 			.field("disable_logins", &self.disable_logins)
 			.finish()
 	}

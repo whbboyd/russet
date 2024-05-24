@@ -2,7 +2,7 @@ use chrono::{ DateTime, TimeDelta, Utc };
 use chrono_tz::Tz;
 use crate::domain::model::Entry;
 use crate::domain::RussetDomainService;
-use crate::model::{ EntryId, Pagination, Timestamp, UserId };
+use crate::model::{ EntryId, FeedId, Pagination, Timestamp, UserId };
 use crate::persistence::model::{ Entry as PersistenceEntry, UserEntry };
 use crate::persistence::RussetEntryPersistenceLayer;
 use crate::Result;
@@ -34,6 +34,21 @@ where Persistence: RussetEntryPersistenceLayer {
 			.await
 			.map(|entry| convert_entry(entry, Some(user_entry), Tz::UTC))?
 		)
+	}
+
+	pub async fn get_feed_entries(
+		&self,
+		user_id: &UserId,
+		feed_id: &FeedId,
+		pagination: &Pagination,
+	) -> impl IntoIterator<Item = Result<Entry>> {
+		self.persistence
+			.get_entries_for_user_feed(user_id, feed_id, pagination)
+			.await
+			.into_iter()
+			.map(|result| result.map(|(entry, user_entry)| convert_entry(entry, user_entry, /*FIXME*/Tz::UTC)))
+			.filter(|entry| entry.as_ref().map_or_else(|_| true, |entry| !entry.tombstone))
+			.collect::<Vec<Result<Entry>>>()
 	}
 }
 
