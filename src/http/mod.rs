@@ -14,6 +14,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tower::limit::GlobalConcurrencyLimitLayer;
+use tower_http::compression::CompressionLayer;
 
 mod entry;
 mod feed;
@@ -40,6 +41,7 @@ where Persistence: RussetPersistenceLayer {
 		.route("/subscribe", get(subscribe::subscribe_page).post(subscribe::subscribe))
 		.route("/*any", any(|| async { Redirect::to("/") }))
 		.layer(GlobalConcurrencyLimitLayer::with_semaphore(global_limit_semaphore))
+		.layer(CompressionLayer::new())
 }
 
 #[derive(Debug)]

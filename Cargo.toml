@@ -18,6 +18,7 @@ axum = { version = "0.7", features = ["tracing"] }
 axum-extra = { version = "0.9", features = ["cookie"] }
 axum-macros = "0.4"
 tower = { version = "0.4", features = ["limit"] }
+tower-http = { version = "0.5", features = ["compression-full"] }
 
 # HTTP client
 reqwest = "0.11"
