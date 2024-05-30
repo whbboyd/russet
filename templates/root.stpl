@@ -1,0 +1,53 @@
+<% include!("head.stpl"); %>
+		<form action="<%- relative_root %>/" method="post">
+			<table>
+				<thead class="alt"><tr>
+					<th scope="col">
+						<label for="select-all">All</label>
+						<input type="checkbox" name="select-all" />
+					</th>
+					<th scope="col">Title</th>
+					<th scope="col">Date</th>
+					<th scope="col">Feed</th>
+				</tr></thead>
+				<tbody><%
+	for (i, entry) in entries.iter().enumerate() {
+		let mut classes = vec![];
+		if i % 2 == 1 { classes.push("alt") };
+		if !entry.read { classes.push("unread") };
+		let classes = if classes.len() > 0 {
+			format!(" class=\"{}\"", classes.join(" "))
+		} else {
+			"".to_string()
+		};
+	%>
+					<tr<%- classes %>>
+						<td class="center"><input type="checkbox" name="select-<%= entry.id.to_string() %>" /></td>
+						<td><a href="<%- relative_root %>entry/<%- entry.id.to_string() %>"><%= entry.title %></a></td>
+						<td class="center"><%= entry.article_date %></td>
+						<td class="center"><a href="<%- relative_root %>feed/<%= entry.feed_id.to_string() %>"><%=
+	match feeds.get(&entry.feed_id) {
+		Some(feed) => feed.title.clone(),
+		None => "Unknown Feed".to_string(),
+	}
+	%></a></td>
+					</tr><%
+	}
+	%>
+				</tbody>
+			</table>
+			<div>Page:
+				<% if page_num > 1 { %><a href="<%- relative_root %>?page_num=0">1</a>…<% } %>
+				<% if page_num > 0 { %><a href="<%- relative_root %>?page_num=<%- page_num - 1 %>"><%- page_num %></a><% } %>
+				<%- page_num + 1 %>
+				<a href="<%- relative_root %>?page_num=<%- page_num + 1 %>"><%- page_num + 2 %></a>
+			</div>
+			<div class="dialog" style="display: flex; justify-content: center;">
+				<div class="controls">
+					<button name="action" value="mark_read">Mark Read</button>
+					<button name="action" value="delete">Delete</button>
+					<button name="action" value="subscribe" formaction="<%- relative_root %>/subscribe" formmethod="get">Subscribe</button>
+				</div>
+			</div>
+		</form>
+<% include!("foot.stpl"); %>

@@ -50,6 +50,21 @@ where Persistence: RussetEntryPersistenceLayer {
 			.filter(|entry| entry.as_ref().map_or_else(|_| true, |entry| !entry.tombstone))
 			.collect::<Vec<Result<Entry>>>()
 	}
+
+	pub async fn set_userentries(
+		&self,
+		entry_ids: &Vec<EntryId>,
+		user_id: &UserId,
+		user_entry: &UserEntry,
+	) -> Result<()> {
+		for entry_id in entry_ids {
+			let _ = self.persistence
+				.get_entry_and_set_userentry(entry_id, user_id, user_entry)
+				.await?;
+		}
+		Ok(())
+	}
+
 }
 
 fn convert_entry(entry: PersistenceEntry, user_entry: Option<UserEntry>, tz: Tz) -> Entry {
