@@ -7,7 +7,7 @@
 					<label for="plaintext_password">Password:</label>
 					<input type="password" name="plaintext_password" />
 					<label for="permanent_session">Stay logged in</label>
-					<input type="checkbox" name="permanent_session" value="true"/>
+					<input type="checkbox" name="permanent_session" value="true" />
 				</div><%
 	if redirect_to != None {
 	%>
@@ -15,7 +15,7 @@
 	}
 	%>
 				<div class="controls">
-					<input type="submit" value = "Log in" />
+					<button>Log in</button>
 				</div>
 			</form>
 		</div>

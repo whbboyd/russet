@@ -44,22 +44,56 @@ a:hover {
 }
 
 /* Table styles */
-table {
+#table {
+	display: table;
 	width: 100%;
+	padding: 1em;
+	border: 0.25em outset #272727;
+	border-radius: 0.5em;
+	box-shadow: 0.2em 0.2em 1em -0.5em #000;
+}
+#table-header {
+	display: table-row;
+	font-weight: bold;
+	background: #333;
+}
+.table-row {
+	display: table-row;
 }
 .alt {
+	display: table-row;
 	background: #333;
+}
+.table-row:hover {
+	background: #272727;
+}
+.alt:hover {
+	background: #373737;
+}
+#table .select {
+	display: table-cell;
+	padding: 0.3em 1em;
+	text-align: center;
+	border-right: 1px solid #222;
+}
+#table .title {
+	display: table-cell;
+	padding: 0.3em 1em;
+	border-right: 1px solid #222;
+}
+#table .date {
+	display: table-cell;
+	padding: 0.3em 1em;
+	text-align: center;
+	border-right: 1px solid #222;
+}
+#table .feed {
+	display: table-cell;
+	padding: 0.3em 1em;
+	text-align: center;
 }
 .unread {
 	font-weight: bold;
-}
-td {
-	padding-left: 1em;
-	padding-right: 1em;
-	border: none;
-}
-td.center {
-	text-align: center;
 }
 
 /* Footer styles */
@@ -67,27 +101,51 @@ td.center {
 	margin-top: 0.5em;
 	text-align: center;
 }
-
-/* Dialog form styles */
-.dialog {
-	width: 50em;
-	padding: 1em;
-	border-radius: 0.5em;
-	background: #333;
+#pagination {
+	margin: 1em;
 }
-.dialog input {
+
+/* General form styles */
+input[type = checkbox] {
 	font-family: inherit;
 	font-size: 100%;
 	color: inherit;
-	margin: 0.5em;
 	border-radius: 0.25em;
 }
-.dialog input[type=checkbox] {
-	width: fit-content;
+button {
+	background: #282;
+	color: #fff;
+	border: 0.25em outset #393;
+	border-radius: 0.25em;
+	padding: 0.5em 1.5em 0.5em 1.5em;
+	box-shadow: 0.2em 0.2em 1em -0.5em #000;
+}
+button:hover {
+	background: #393;
+	border-color: #4a4;
+}
+button:active {
+	background: #161;
+	border-color: #282;
+	border-style: inset;
+}
+
+/* Dialog form styles */
+.dialog {
+	background: #333;
+	width: 50em;
+	padding: 1em;
+	border: 0.25em outset #444;
+	border-radius: 0.5em;
+	box-shadow: 0.2em 0.2em 1em -0.5em #000;
+}
+.dialog input {
+	margin: 0.5em;
 }
 .dialog .inputs {
 	display: grid;
 	grid-template-columns: 30% 70%;
+	margin-bottom: 0.5em;
 }
 .dialog label {
 	text-align: right;
@@ -99,10 +157,4 @@ td.center {
 }
 .dialog .controls {
 	float: right;
-}
-.dialog .controls input {
-	background: #282;
-	color: #fff;
-	border: none;
-	padding: 0.5em 1.5em 0.5em 1.5em;
 }

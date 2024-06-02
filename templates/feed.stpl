@@ -1,46 +1,42 @@
 <% include!("head.stpl"); %>
 		<p>Feed URL: <a href="<%- feed.url %>"><%= feed.url %></a></p>
-		<form><table>
-			<thead class="alt"><tr>
-				<th scope="col">
-					<label for="select-all">All</label>
-					<input type="checkbox" name="select-all" />
-				</th>
-				<th scope="col">Title</th>
-				<th scope="col">Date</th>
-			</tr></thead>
-			<tbody><%
+		<form action="<%- relative_root %>/" method="post">
+			<div id="table">
+				<div id="table-header">
+					<div class="select">
+						<label for="select-all">All</label>
+						<input type="checkbox" name="select-all" disabled />
+					</div>
+					<div class="title">Title</div>
+					<div class="date">Date</div>
+				</div><%
 for (i, entry) in entries.iter().enumerate() {
 	let mut classes = vec![];
-	if i % 2 == 1 { classes.push("alt") };
-	if !entry.read { classes.push("unread") };
-	let classes = if classes.len() > 0 {
-		format!(" class=\"{}\"", classes.join(" "))
+	if i % 2 == 1 {
+		classes.push("alt")
 	} else {
-		"".to_string()
+		classes.push("table-row")
 	};
+	if !entry.read { classes.push("unread") };
+	let classes = classes.join(" ");
 %>
-				<tr<%- classes %>>
-					<td class="center"><input type="checkbox" name="select-<%= entry.id.to_string() %>" /></td>
-					<td><a href="<%- relative_root %>entry/<%- entry.id.to_string() %>"><%= entry.title %></a></td>
-					<td class="center"><%= entry.article_date %></td>
-				</tr><%
+				<div class="<%- classes %>">
+					<div class="select"><input type="checkbox" name="select-<%= entry.id.to_string() %>" /></div>
+					<a class="title" href="<%- relative_root %>entry/<%- entry.id.to_string() %>"><%= entry.title %></a>
+					<div class="date"><%= entry.article_date %></div>
+				</div><%
 }
 %>
-			</tbody>
-		</table></form>
-		<div>Page:
-			<% if page_num > 1 { %><a href="<%- relative_root %>?page_num=0">1</a>…<% } %>
-			<% if page_num > 0 { %><a href="<%- relative_root %>?page_num=<%- page_num - 1 %>"><%- page_num %></a><% } %>
-			<%- page_num + 1 %>
-			<a href="<%- relative_root %>?page_num=<%- page_num + 1 %>"><%- page_num + 2 %></a>
-		</div>
-		<div style="display: flex; justify-content: center;">
-			<form action="<%- relative_root %>feed/<%- feed.id.to_string() %>" method="post" class="dialog">
-				<div class="controls">
-					<input type="submit" value = "Unsubscribe" />
-				</div>
-			</form>
-		</div>
+			</div>
+<% include!("pagination.stpl"); %>
+			<div style="display: flex; justify-content: center;"><div class="dialog">
+				<span style="flex-grow: 3">
+					<button name="action" value="mark_read">Mark Read</button>
+					<button name="action" value="delete">Delete</button>
+				</span>
+				<span class="controls">
+					<button name="action" value="unsubscribe" formaction="<%- relative_root %>feed/<%- feed.id.to_string() %>" formmethod="post">Unsubscribe</button>
+				</span>
+			</div></div>
 <% include!("foot.stpl"); %>
 

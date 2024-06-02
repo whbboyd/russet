@@ -6,7 +6,7 @@
 					<input type="text" name="url"/>
 				</div>
 				<div class="controls">
-					<input type="submit" value = "Subscribe" />
+					<button>Subscribe</button>
 				</div>
 			</form>
 		</div>

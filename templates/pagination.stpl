@@ -1,0 +1,9 @@
+			<div id="pagination">Page: <%
+if page_num > 1 {
+	%><a href="<%- relative_root %>?page_num=0">1</a>… <%
+}
+if page_num > 0 {
+	%><a href="<%- relative_root %>?page_num=<%- page_num - 1 %>"><%- page_num %></a> <%
+}
+%><%- page_num + 1 %> <a href="<%- relative_root %>?page_num=<%- page_num + 1 %>"><%- page_num + 2 %></a>
+			</div>
