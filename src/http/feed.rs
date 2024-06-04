@@ -1,8 +1,8 @@
 use axum::extract::{ Form, Path, State };
-use axum::http::StatusCode;
 use axum::response::{ Html, Redirect };
 use crate::domain::model::{ Entry, Feed };
 use crate::http::{ AppState, AuthenticatedUser, PageQuery };
+use crate::http::error::HttpError;
 use crate::model::{ FeedId, Pagination };
 use crate::persistence::model::User;
 use crate::persistence::RussetPersistenceLayer;
@@ -24,12 +24,12 @@ pub async fn feed_page<Persistence>(
 	State(state): State<AppState<Persistence>>,
 	user: AuthenticatedUser<Persistence>,
 	Form(pagination): Form<PageQuery>,
-) -> Html<String>
+) -> Result<Html<String>, HttpError>
 where Persistence: RussetPersistenceLayer {
 	let page_num = pagination.page_num.unwrap_or(0);
 	let page_size = pagination.page_size.unwrap_or(100);
 	let pagination = Pagination { page_num, page_size };
-	let feed = state.domain_service.get_feed(&feed_id).await.unwrap();
+	let feed = state.domain_service.get_feed(&feed_id).await?;
 	let entries = state.domain_service
 		.get_feed_entries(&user.user.id, &feed_id, &pagination)
 		.await
@@ -37,7 +37,7 @@ where Persistence: RussetPersistenceLayer {
 		.filter_map(|entry| entry.ok())
 		.collect::<Vec<Entry>>();
 	let page_title = format!("Feed - {}", feed.title);
-	Html(
+	Ok(Html(
 		FeedPageTemplate {
 			user: Some(&user.user),
 			entries: &entries.as_slice(),
@@ -46,9 +46,8 @@ where Persistence: RussetPersistenceLayer {
 			page_title: &page_title,
 			relative_root: "../",
 		}
-		.render_once()
-		.unwrap()
-	)
+		.render_once()?
+	) )
 }
 
 #[tracing::instrument]
@@ -56,8 +55,8 @@ pub async fn unsubscribe<Persistence>(
 	Path(feed_id): Path<FeedId>,
 	State(state): State<AppState<Persistence>>,
 	user: AuthenticatedUser<Persistence>,
-) -> Result<Redirect, StatusCode>
+) -> Result<Redirect, HttpError>
 where Persistence: RussetPersistenceLayer {
-	state.domain_service.unsubscribe(&user.user.id, &feed_id).await.unwrap();
+	state.domain_service.unsubscribe(&user.user.id, &feed_id).await?;
 	Ok(Redirect::to("../"))
 }

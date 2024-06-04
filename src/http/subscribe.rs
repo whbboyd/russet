@@ -1,7 +1,7 @@
 use axum::extract::{ Form, State };
-use axum::http::StatusCode;
 use axum::response::{ Html, Redirect };
 use crate::http::AppState;
+use crate::http::error::HttpError;
 use crate::http::session::AuthenticatedUser;
 use crate::persistence::model::User;
 use crate::persistence::RussetPersistenceLayer;
@@ -20,17 +20,16 @@ pub struct SubscribePage<'a> {
 pub async fn subscribe_page<Persistence>(
 	State(_state): State<AppState<Persistence>>,
 	user: AuthenticatedUser<Persistence>,
-) -> Html<String>
+) -> Result<Html<String>, HttpError>
 where Persistence: RussetPersistenceLayer {
-	Html(
+	Ok(Html(
 		SubscribePage{
 			user: Some(&user.user),
 			page_title: "Subscribe",
 			relative_root: "",
 		}
-		.render_once()
-		.unwrap()
-	)
+		.render_once()?
+	) )
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -42,19 +41,13 @@ pub async fn subscribe<Persistence>(
 	State(state): State<AppState<Persistence>>,
 	user: AuthenticatedUser<Persistence>,
 	Form(subscribe): Form<SubscribeRequest>,
-) -> Result<Redirect, StatusCode>
+) -> Result<Redirect, HttpError>
 where Persistence: RussetPersistenceLayer {
 	let url = match Url::parse(&subscribe.url) {
 		Ok(url) => url,
-		Err(_) => return Err(StatusCode::BAD_REQUEST),
+		Err(_) => return Err(HttpError::BadRequest { description: format!("Could not parse URL {:?}", subscribe.url) }),
 	};
-	let feed_id = match state.domain_service.add_feed(&url).await {
-		Ok(feed_id) => feed_id,
-		Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
-	};
-	match state.domain_service.subscribe(&user.user.id, &feed_id).await {
-		Ok(_) => (),
-		Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
-	};
+	let feed_id = state.domain_service.add_feed(&url).await?;
+	state.domain_service.subscribe(&user.user.id, &feed_id).await?;
 	Ok(Redirect::to("/"))
 }

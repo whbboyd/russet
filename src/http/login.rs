@@ -1,12 +1,11 @@
 use axum::extract::{ Form, State };
 use axum_extra::extract::cookie::{ Cookie, CookieJar, Expiration };
-use axum::http::StatusCode;
 use axum::response::{ Html, Redirect };
 use crate::http::AppState;
+use crate::http::error::HttpError;
 use crate::persistence::RussetPersistenceLayer;
 use sailfish::TemplateOnce;
 use serde::Deserialize;
-use tracing::error;
 
 #[derive(Debug, TemplateOnce)]
 #[template(path = "login.stpl")]
@@ -24,18 +23,17 @@ pub struct LoginPageQuery {
 pub async fn login_page<Persistence>(
 	State(_state): State<AppState<Persistence>>,
 	Form(login): Form<LoginPageQuery>,
-) -> Html<String>
+) -> Result<Html<String>, HttpError>
 where Persistence: RussetPersistenceLayer {
-	Html(
+	Ok(Html(
 		LoginPageTemplate{
 			redirect_to: login.redirect_to.as_ref().map(|redirect| redirect.as_str()),
 			page_title: "Login",
 			relative_root: "",
 			user: None,
 		}
-		.render_once()
-		.unwrap()
-	)
+		.render_once()?
+	) )
 }
 
 #[derive(Deserialize, Clone)]
@@ -63,7 +61,7 @@ pub async fn login_user<Persistence>(
 	State(state): State<AppState<Persistence>>,
 	cookies: CookieJar,
 	Form(login): Form<LoginRequest>,
-) -> Result<(CookieJar, Redirect), StatusCode>
+) -> Result<(CookieJar, Redirect), HttpError>
 where Persistence: RussetPersistenceLayer {
 	let session = state.domain_service
 		.login_user(
@@ -71,9 +69,9 @@ where Persistence: RussetPersistenceLayer {
 			login.plaintext_password,
 			login.permanent_session,
 		)
-		.await;
+		.await?;
 	match session {
-		Ok(Some(session)) => {
+		Some(session) => {
 			let cookie = Cookie::build(("session_id", session.token.0))
 				.expires(
 					if login.permanent_session {
@@ -88,10 +86,6 @@ where Persistence: RussetPersistenceLayer {
 				Redirect::to(&login.redirect_to.unwrap_or("/".to_string())),
 			))
 		},
-		Ok(None) => Err(StatusCode::UNAUTHORIZED),
-		Err(e) => {
-			error!(error = e.as_ref());
-			Err(StatusCode::INTERNAL_SERVER_ERROR)
-		}
+		None => Err(HttpError::Unauthenticated),
 	}
 }

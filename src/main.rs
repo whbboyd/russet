@@ -18,7 +18,6 @@ use crate::domain::RussetDomainService;
 use crate::feed::atom::AtomFeedReader;
 use crate::feed::rss::RssFeedReader;
 use crate::feed::RussetFeedReader;
-use crate::model::UserType;
 use crate::persistence::sql::SqlDatabase;
 use crate::server::start;
 use merge::Merge;

@@ -1,5 +1,5 @@
 use axum::middleware::map_response;
-use axum::response::{ Redirect, Response };
+use axum::response::Response;
 use axum::Router;
 use axum::routing::{ any, get, post };
 use crate::domain::RussetDomainService;
@@ -12,6 +12,7 @@ use tower::limit::GlobalConcurrencyLimitLayer;
 use tower_http::compression::CompressionLayer;
 
 mod entry;
+pub mod error;
 mod feed;
 mod login;
 mod root;
@@ -37,7 +38,8 @@ where Persistence: RussetPersistenceLayer {
 		.route("/feed/:id", get(feed::feed_page).post(feed::unsubscribe))
 		.route("/user/:id", get(user::user_page))
 		.route("/subscribe", get(subscribe::subscribe_page).post(subscribe::subscribe))
-		.route("/*any", any(|| async { Redirect::to("/") }))
+		.route("/error", get(|| async { error::HttpError::InternalError { description: "Juicy details!".to_string() }}))
+		.route("/*any", any(|| async { error::HttpError::NotFound }))
 		.layer(GlobalConcurrencyLimitLayer::with_semaphore(global_limit_semaphore))
 		.layer(map_response(csp_header))
 		.layer(CompressionLayer::new())

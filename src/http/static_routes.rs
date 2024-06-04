@@ -8,6 +8,8 @@ use sailfish::TemplateOnce;
 struct Css { }
 #[tracing::instrument]
 pub async fn styles() -> Response<String> {
+	// TODO: This isn't actually infallible. Do something vaguely reasonable if
+	// it fails.
 	Response::builder()
 		.status(StatusCode::OK)
 		.header(header::CONTENT_TYPE, "text/css")

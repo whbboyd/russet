@@ -1,17 +1,15 @@
 use axum::extract::{ Form, State };
-use axum::http::StatusCode;
 use axum::response::{ Html, Redirect };
 use crate::domain::model::{ Entry, Feed };
 use crate::http::{ AppState, PageQuery };
+use crate::http::error::HttpError;
 use crate::http::session::AuthenticatedUser;
 use crate::model::{ EntryId, FeedId, Pagination, Timestamp };
 use crate::persistence::model::{ User, UserEntry };
 use crate::persistence::RussetPersistenceLayer;
-use crate::Result;
 use sailfish::TemplateOnce;
 use std::collections::HashMap;
 use std::time::SystemTime;
-use tracing::error;
 
 // Root (home/entries) page template
 #[derive(TemplateOnce)]
@@ -29,11 +27,14 @@ pub async fn root<Persistence>(
 	State(state): State<AppState<Persistence>>,
 	user: AuthenticatedUser<Persistence>,
 	Form(pagination): Form<PageQuery>,
-) -> Html<String>
+) -> Result<Html<String>, HttpError>
 where Persistence: RussetPersistenceLayer {
 	let page_num = pagination.page_num.unwrap_or(0);
 	let page_size = pagination.page_size.unwrap_or(100);
 	let pagination = Pagination { page_num, page_size };
+	// TODO: If every element of entries or feeds is Err, we didn't partially
+	// succeed, we utterly failed, and we should indicate that.
+	// TODO: Also we should probably indicate partial failure.
 	let entries = state.domain_service
 		.get_subscribed_entries(&user.user.id, &pagination)
 		.await
@@ -47,7 +48,7 @@ where Persistence: RussetPersistenceLayer {
 		.filter_map(|feed| feed.ok())
 		.map(|feed| (feed.id.clone(), feed))
 		.collect::<HashMap<FeedId, Feed>>();
-	Html(
+	Ok(Html(
 		RootPageTemplate {
 			user: Some(&user.user),
 			entries: entries.as_slice(),
@@ -56,9 +57,8 @@ where Persistence: RussetPersistenceLayer {
 			page_title: "Entries",
 			relative_root: "",
 		}
-		.render_once()
-		.unwrap()
-	)
+		.render_once()?
+	) )
 }
 
 #[derive(Debug)]
@@ -73,7 +73,7 @@ pub struct EditUserEntriesRequest {
 	selected_ids: Vec<EntryId>,
 }
 impl EditUserEntriesRequest {
-	fn from_raw_entries(entries: &Vec<(String, String)>) -> Result<EditUserEntriesRequest> {
+	fn from_raw_entries(entries: &Vec<(String, String)>) -> crate::Result<EditUserEntriesRequest> {
 		let mut action: Option<Action> = None;
 		let mut select_all = false;
 		let mut selected_ids: Vec<EntryId> = Vec::new();
@@ -110,23 +110,19 @@ pub async fn edit_userentries<Persistence>(
 	State(state): State<AppState<Persistence>>,
 	user: AuthenticatedUser<Persistence>,
 	Form(request): Form<Vec<(String, String)>>,
-) -> std::result::Result<Redirect, StatusCode>
+) -> Result<Redirect, HttpError>
 where Persistence: RussetPersistenceLayer {
-	let request = EditUserEntriesRequest::from_raw_entries(&request)
-		.map_err(|err| {
-			error!("{err:?}");
-			StatusCode::INTERNAL_SERVER_ERROR
-		})?;
+	let request = EditUserEntriesRequest::from_raw_entries(&request)?;
 	let time = Some(Timestamp::new(SystemTime::now()));
 	let user_entry = match request.action {
 		Action::MarkRead => UserEntry { read: time, tombstone: None },
 		Action::Delete => UserEntry { read: time.clone(), tombstone: time },
 	};
-	state.domain_service.set_userentries(&request.selected_ids, &user.user.id, &user_entry)
-		.await
-		.map_err(|err| {
-			error!("{err:?}");
-			StatusCode::INTERNAL_SERVER_ERROR
-		})?;
+	state.domain_service.set_userentries(
+			&request.selected_ids,
+			&user.user.id,
+			&user_entry,
+		)
+		.await?;
 	Ok(Redirect::to("/"))
 }
