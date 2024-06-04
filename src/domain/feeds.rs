@@ -1,23 +1,23 @@
 use crate::domain::model::Feed;
 use crate::domain::RussetDomainService;
-use crate::Result;
+use crate::{ Err, Result };
 use crate::model::{ EntryId, FeedId, UserId };
 use crate::persistence::model::{ Entry, Feed as PersistenceFeed };
 use crate::persistence::{ RussetEntryPersistenceLayer, RussetFeedPersistenceLayer };
 use crate::feed::model::Feed as ReaderFeed;
 use reqwest::Url;
 use std::collections::HashSet;
+use std::error::Error;
+use std::fmt::Display;
 use ulid::Ulid;
 
 impl <Persistence> RussetDomainService<Persistence>
 where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 
 	/// Update the stored entries for all feeds known to the persistence layer
-	///
-	/// TODO: There could be multiple errors, and this will swallow all but one
-	/// of them.
-	pub async fn update_feeds(&self) -> Result<()> {
-		let fetch_index = self.persistence.get_and_increment_fetch_index().await?;
+	pub async fn update_feeds(&self) -> std::result::Result<(), Vec<Err>> {
+		let fetch_index = self.persistence.get_and_increment_fetch_index().await
+			.map_err(|err| vec![err])?;
 		let feeds = self.persistence
 			.get_feeds()
 			.await
@@ -27,10 +27,33 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 		let mut errors = vec![];
 		for feed in feeds {
 			if let Err(e) = self.update_feed(&feed, fetch_index).await {
-				errors.push(Err(e))
+				#[derive(Debug)]
+				struct FeedUpdateError {
+					description: String,
+					source: Err,
+				}
+				impl Display for FeedUpdateError {
+					fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+						f.write_str(self.description.as_str())
+					}
+				}
+				impl Error for FeedUpdateError {
+					fn source(&self) -> Option<&(dyn Error + 'static)> {
+						Some(self.source.as_ref())
+					}
+				}
+
+				errors.push(Box::new(FeedUpdateError {
+					description: format!("Error updating feed {} ({:?})", feed.title, feed.id),
+					source: e,
+				} ).into() )
 			}
 		}
-		errors.into_iter().next().unwrap_or(Ok(()))
+		if errors.is_empty() {
+			Ok(())
+		} else {
+			Err(errors)
+		}
 	}
 
 	/// Given a URL, ensure the feed is stored in the persistence layer.

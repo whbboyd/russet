@@ -23,8 +23,10 @@ where Persistence: RussetPersistenceLayer {
 	tokio::spawn(async move {
 		loop {
 			info!("Updating feeds");
-			if let Err(e) = update_service.update_feeds().await {
-				error!(error = e.as_ref(), "Error updating feeds");
+			if let Err(errs) = update_service.update_feeds().await {
+				for err in errs {
+					error!(error = err);
+				}
 			}
 			tokio::time::sleep(check_interval).await;
 		}
