@@ -1,4 +1,5 @@
 use clap::{ Args, Parser, Subcommand};
+use crate::model::UserType;
 use merge::Merge;
 use serde::Deserialize;
 use std::num::ParseIntError;
@@ -92,6 +93,7 @@ pub enum Command {
 	AddUser {
 		user_name: String,
 		password: Option<String>,
+		user_type: Option<UserType>,
 	},
 
 	/// Reset a user's password

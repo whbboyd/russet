@@ -18,6 +18,7 @@ use crate::domain::RussetDomainService;
 use crate::feed::atom::AtomFeedReader;
 use crate::feed::rss::RssFeedReader;
 use crate::feed::RussetFeedReader;
+use crate::model::UserType;
 use crate::persistence::sql::SqlDatabase;
 use crate::server::start;
 use merge::Merge;
@@ -100,19 +101,30 @@ async fn main() -> Result<()> {
 				login_concurrent_limit
 			)
 			.await?,
-		Command::AddUser { user_name, password } => {
+		Command::AddUser { user_name, password, user_type } => {
 			info!("Adding user {user_name}…");
 			let plaintext_password = match password {
 				Some(password) => password,
-				None => prompt_password(format!("Enter password for {}: ", user_name))?,
+				None => prompt_password(format!("Enter password for {user_name}: "))?,
 			};
-			domain_service.add_user(&user_name, &plaintext_password).await?;
+			let user_type = match user_type {
+				Some(user_type) => user_type,
+				None => {
+					print!("Enter user type (\"Member\" or \"Sysop\"): ");
+					use std::io::Write;
+					std::io::stdout().flush()?;
+					let mut user_type_str = String::new();
+					std::io::stdin().read_line(&mut user_type_str)?;
+					user_type_str.trim_end().to_string().try_into()?
+				}
+			};
+			domain_service.add_user(&user_name, &plaintext_password, user_type).await?;
 		},
 		Command::SetUserPassword { user_name, password } => {
 			info!("Setting password for user {user_name}…");
 			let plaintext_password = match password {
 				Some(password) => password,
-				None => prompt_password(format!("Enter password for {}: ", user_name))?,
+				None => prompt_password(format!("Enter password for {user_name}: "))?,
 			};
 			domain_service
 				.set_user_password(&user_name, &plaintext_password)
@@ -123,7 +135,7 @@ async fn main() -> Result<()> {
 			domain_service.delete_user(&user_name).await?;
 		}
 		Command::DeleteSessions { user_name } => {
-			info!("Delete sessions for {user_name}…");
+			info!("Deleting sessions for {user_name}…");
 			domain_service.delete_user_sessions(&user_name).await?;
 		}
 		_ => { warn!("Not yet implemented") },

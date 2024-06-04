@@ -1,4 +1,4 @@
-use crate::model::{ EntryId, FeedId, UserId, Timestamp };
+use crate::model::{ EntryId, FeedId, UserId, UserType, Timestamp };
 use reqwest::Url;
 
 /// Metadata for a feed, e.g. title and feed URL
@@ -33,6 +33,7 @@ pub struct User {
 	pub id: UserId,
 	pub name: String,
 	pub password_hash: PasswordHash,
+	pub user_type: UserType,
 }
 
 #[derive(Clone)]

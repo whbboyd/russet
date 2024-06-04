@@ -39,7 +39,7 @@ where
 					None => Err(Redirect::to("/login").into_response()),
 				}
 			},
-			// Session cookies is missing user needs to autheticate
+			// Session cookies is missing: user needs to authenticate
 			None => Err(Redirect::to("/login").into_response()),
 		}
 	}

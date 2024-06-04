@@ -75,6 +75,10 @@ pub trait RussetEntryPersistenceLayer: Send + Sync + std::fmt::Debug + 'static {
 }
 
 pub trait RussetUserPersistenceLayer: Send + Sync + std::fmt::Debug + 'static {
+
+	/// Get the [User] with the given [UserId]
+	fn get_user(&self, user_id: &UserId) -> impl Future<Output = Result<User>> + Send;
+
 	/// Add the given [User] to the persistence layer
 	async fn add_user(&self, user: &User) -> Result<()>;
 

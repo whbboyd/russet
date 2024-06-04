@@ -4,7 +4,7 @@ use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::SaltString;
 use base32ct::{ Base32Unpadded, Encoding };
 use crate::domain::RussetDomainService;
-use crate::model::{ FeedId, Timestamp, UserId };
+use crate::model::{ FeedId, Timestamp, UserId, UserType };
 use crate::persistence::model::{ PasswordHash, Session, SessionToken, User };
 use crate::persistence::RussetUserPersistenceLayer;
 use crate::Err;
@@ -73,7 +73,12 @@ where Persistence: RussetUserPersistenceLayer {
 		}
 	}
 
-	pub async fn add_user(&self, user_name: &str, plaintext_password: &str) -> Result<()> {
+	pub async fn add_user(
+		&self,
+		user_name: &str,
+		plaintext_password: &str,
+		user_type: UserType
+	) -> Result<()> {
 		if let Some(user) = self.persistence.get_user_by_name(&user_name).await? {
 			return Err(format!("User {} ({}) already exists", user.name, user.id.to_string()).into());
 		}
@@ -82,6 +87,7 @@ where Persistence: RussetUserPersistenceLayer {
 			id: UserId(Ulid::new()),
 			name: user_name.to_string(),
 			password_hash,
+			user_type,
 		};
 		self.persistence.add_user(&user).await?;
 		Ok(())
@@ -139,6 +145,10 @@ where Persistence: RussetUserPersistenceLayer {
 			},
 			None => Ok(None)
 		}
+	}
+
+	pub async fn get_user(&self, user_id: &UserId) -> Result<User> {
+		self.persistence.get_user(user_id).await
 	}
 
 	pub async fn subscribe(&self, user_id: &UserId, feed_id: &FeedId) -> Result<()> {

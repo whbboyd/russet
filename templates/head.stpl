@@ -9,7 +9,14 @@
 		<div id="header">
 			<span id="header-app-title"><a href="<%- relative_root %>"><%- crate::APP_NAME %></a></span>
 			<span id="header-page-title"><%= page_title %></span>
-			<span id="header-user-info"><%=
-user.map(|user| format!("User: {}", user.name)).unwrap_or("".to_string())
+			<span id="header-user-info"><%
+match user {
+	Some(user) => {
+%><a href="<%- relative_root %>user/<%- user.id.to_string() %>">User: <%= user.name %></a><%
+	}
+	None => {
+%><%
+	}
+}
 %></span>
 		</div>

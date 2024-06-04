@@ -8,16 +8,39 @@ use ulid::Ulid;
 impl RussetUserPersistenceLayer for SqlDatabase {
 
 	#[tracing::instrument]
+	async fn get_user(&self, user_id: &UserId) -> Result<User> {
+		let user_id = user_id.to_string();
+		let row = sqlx::query!("
+				SELECT
+					id, name, password_hash, user_type
+				FROM users
+				WHERE id = ?;",
+				user_id)
+			.fetch_one(&self.pool)
+			.await?;
+		let id = UserId(Ulid::from_string(&row.id)?);
+		let password_hash = PasswordHash(row.password_hash);
+		Ok(User {
+			id,
+			name: row.name,
+			password_hash,
+			user_type: row.user_type.try_into()?,
+		} )
+	}
+
+	#[tracing::instrument]
 	async fn add_user(&self, user: &User) -> Result<()> {
 		let user_id = user.id.to_string();
 		let password_hash = &user.password_hash.0;
+		let user_type: String = user.user_type.into();
 		sqlx::query!("
 				INSERT INTO users (
-					id, name, password_hash
-				) VALUES ( ?, ?, ? );",
+					id, name, password_hash, user_type
+				) VALUES ( ?, ?, ?, ? );",
 				user_id,
 				user.name,
 				password_hash,
+				user_type,
 			)
 			.execute(&self.pool)
 			.await?;
@@ -68,7 +91,7 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 	async fn get_user_by_name(&self, user_name: &str) -> Result<Option<User>> {
 		let row_result = sqlx::query!("
 				SELECT
-					id, name, password_hash
+					id, name, password_hash, user_type
 				FROM users
 				WHERE name = ?;",
 				user_name)
@@ -82,6 +105,7 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 					id,
 					name: row.name,
 					password_hash,
+					user_type: row.user_type.try_into()?,
 				} ) )
 			},
 			Err(sqlx::Error::RowNotFound) => Ok(None),
@@ -92,7 +116,7 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 	#[tracing::instrument]
 	async fn add_session(&self, session: &Session) -> Result<()> {
 		let user_id = session.user_id.to_string();
-		let expiration = TryInto::<i64>::try_into(session.expiration.clone())?;
+		let expiration: i64 = session.expiration.clone().try_into()?;
 		sqlx::query!("
 				INSERT INTO sessions (
 					token, user_id, expiration
@@ -110,7 +134,7 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 	async fn get_user_by_session(&self, session_token: &str) -> Result<Option<(User, Session)>> {
 		let row_result = sqlx::query!("
 				SELECT
-					users.id, users.name, users.password_hash,
+					users.id, users.name, users.password_hash, users.user_type,
 					sessions.expiration
 				FROM users
 				JOIN sessions
@@ -128,6 +152,7 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 						id: user_id.clone(),
 						name: row.name,
 						password_hash,
+						user_type: row.user_type.try_into()?,
 					},
 					Session {
 						token: SessionToken(session_token.to_string()),
@@ -159,12 +184,12 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 	}
 
 	#[tracing::instrument]
-	async fn delete_expired_sessions(&self, expiry: &Timestamp) -> Result<()> {
-		let expiry = TryInto::<i64>::try_into(expiry.clone())?;
+	async fn delete_expired_sessions(&self, expiration: &Timestamp) -> Result<()> {
+		let expiration: i64 = expiration.clone().try_into()?;
 		sqlx::query!("
 				DELETE FROM sessions
 				wHERE expiration < ?;",
-				expiry,
+				expiration,
 			)
 			.execute(&self.pool)
 			.await?

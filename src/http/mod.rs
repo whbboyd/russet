@@ -18,6 +18,7 @@ mod root;
 mod session;
 mod static_routes;
 mod subscribe;
+mod user;
 
 pub fn russet_router<Persistence>(
 	global_concurrent_limit: u32,
@@ -34,6 +35,7 @@ where Persistence: RussetPersistenceLayer {
 		.route("/", get(root::root).post(root::edit_userentries))
 		.route("/entry/:id", get(entry::mark_read_redirect))
 		.route("/feed/:id", get(feed::feed_page).post(feed::unsubscribe))
+		.route("/user/:id", get(user::user_page))
 		.route("/subscribe", get(subscribe::subscribe_page).post(subscribe::subscribe))
 		.route("/*any", any(|| async { Redirect::to("/") }))
 		.layer(GlobalConcurrencyLimitLayer::with_semaphore(global_limit_semaphore))
