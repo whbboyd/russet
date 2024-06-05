@@ -1,5 +1,5 @@
 use axum::http::StatusCode;
-use axum::response::{ Html, IntoResponse, Response  };
+use axum::response::{ Html, IntoResponse, Redirect, Response };
 use crate::Err;
 use crate::persistence::model::User;
 use sailfish::RenderError;
@@ -9,7 +9,7 @@ use ulid::Ulid;
 
 pub enum HttpError {
 	BadRequest { description: String },
-	Unauthenticated,
+	Unauthenticated { redirect_to: Option<String> },
 	NotFound,
 	InternalError { description: String },
 }
@@ -41,7 +41,13 @@ impl IntoResponse for HttpError {
 	fn into_response(self) -> Response {
 		let (status, description) = match self {
 			HttpError::BadRequest { description } => (StatusCode::BAD_REQUEST, description),
-			HttpError::Unauthenticated => (StatusCode::UNAUTHORIZED, "You must <a href=\"/login\">log in</a>.".to_string()),
+			HttpError::Unauthenticated { redirect_to } => {
+				let redirect = format!("/login{}", redirect_to.map_or(
+						"".to_string(),
+						|redirect| format!("?redirect_to={redirect}"),
+					) );
+				return Redirect::to(&redirect).into_response();
+			},
 			HttpError::NotFound => (StatusCode::NOT_FOUND, "No resource exists at this URL.".to_string()),
 			HttpError::InternalError { description } => {
 				let correlation_id = Ulid::new();

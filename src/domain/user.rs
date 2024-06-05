@@ -65,7 +65,10 @@ where Persistence: RussetUserPersistenceLayer {
 			}
 			None => {
 				// Hash the password anyway to resist user enumeration via side channels
-				let parsed_hash = argon2::PasswordHash::new("$argon2id$v=19$m=19456,t=2,p=1$DFhnniX1Kn3JoEKD5e9qbQ$IxgxUYNYPTvPTjez280uFJh166f+eNkCXntlVe5NaZQ").unwrap();
+				let parsed_hash = argon2::PasswordHash::new(
+						"$argon2id$v=19$m=19456,t=2,p=1$DFhnniX1Kn3JoEKD5e9qbQ$\
+						IxgxUYNYPTvPTjez280uFJh166f+eNkCXntlVe5NaZQ"
+					).expect("hardcoded password hash should parse");
 				let _ = password_hash.verify_password(&password_bytes, &parsed_hash);
 				info!("User {:?} not found", user_name);
 				Ok(None)

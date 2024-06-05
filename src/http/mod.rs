@@ -26,8 +26,20 @@ pub fn russet_router<Persistence>(
 	login_concurrent_limit: u32,
 ) -> Router<AppState<Persistence>>
 where Persistence: RussetPersistenceLayer {
-	let global_limit_semaphore = Arc::new(Semaphore::new(global_concurrent_limit.try_into().unwrap()));
-	let login_limit_sempahore = Arc::new(Semaphore::new(login_concurrent_limit.try_into().unwrap()));
+	let global_limit_semaphore = Arc::new(
+		Semaphore::new(
+			global_concurrent_limit
+				.try_into()
+				.expect("global concurrency limit should fit in a usize")
+		)
+	);
+	let login_limit_sempahore = Arc::new(
+		Semaphore::new(
+			login_concurrent_limit
+				.try_into()
+				.expect("login concurrency limit should *definitely* fit in a usize")
+		)
+	);
 	Router::new()
 		.route("/login", post(login::login_user))
 		.layer(GlobalConcurrencyLimitLayer::with_semaphore(login_limit_sempahore))
@@ -50,7 +62,9 @@ async fn csp_header<B>(mut response: Response<B>) -> Response<B> {
 		.headers_mut()
 		.insert(
 			"Content-Security-Policy",
-			"script-source none".parse().unwrap(),
+			"script-source none"
+				.parse()
+				.expect("hard-coded header should be encoded correctly"),
 		);
 	response
 }

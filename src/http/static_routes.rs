@@ -13,6 +13,6 @@ pub async fn styles() -> Response<String> {
 	Response::builder()
 		.status(StatusCode::OK)
 		.header(header::CONTENT_TYPE, "text/css")
-		.body(Css{}.render_once().unwrap())
-		.unwrap()
+		.body(Css{}.render_once().expect("rendering a static asset should work"))
+		.expect("building a response with a static asset should work")
 }

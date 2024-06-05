@@ -23,7 +23,9 @@ impl RussetFeedReader for RssFeedReader {
 		let title = rss.title;
 		let entries = rss.items.into_iter().map(|item| {
 			Entry {
-				internal_id: item.guid.map_or_else(|| item.link.clone().unwrap(), |guid| guid.value().to_string()),
+				internal_id: item.guid.map_or_else(
+					|| item.link.clone().expect("TODO: every item might not have either a guid or a link"),
+					|guid| guid.value().to_string()),
 				url: item
 					.link
 					.map_or(None, |url| Url::parse(&url).ok()),

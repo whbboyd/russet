@@ -43,7 +43,15 @@ impl TryFrom<Timestamp> for i64 {
 	type Error = Err;
 	fn try_from(value: Timestamp) -> Result<i64> {
 		Ok(value.0.duration_since(SystemTime::UNIX_EPOCH).map_or_else(
-			|_| SystemTime::UNIX_EPOCH.duration_since(value.0).unwrap().as_millis().try_into().map(|i: i64| -i),
+			// Err case: value is prior to epoch, so do the comparison in the
+			// other direction and negate the result
+			|_| SystemTime::UNIX_EPOCH
+					.duration_since(value.0)
+					.expect("duration_since should only return Err if the SystemTimes are in reverse order")
+					.as_millis()
+					.try_into()
+					.map(|i: i64| -i),
+			// Ok case: just pull out the milliseconds
 			|duration| duration.as_millis().try_into(),
 		)?)
 	}

@@ -86,6 +86,6 @@ where Persistence: RussetPersistenceLayer {
 				Redirect::to(&login.redirect_to.unwrap_or("/".to_string())),
 			))
 		},
-		None => Err(HttpError::Unauthenticated),
+		None => Err(HttpError::Unauthenticated { redirect_to: login.redirect_to }),
 	}
 }

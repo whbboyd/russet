@@ -208,8 +208,7 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 			.execute(&self.pool)
 			.await?
 			.rows_affected()
-			.try_into()
-			.unwrap();
+			.try_into()?;
 		Ok(rows)
 	}
 

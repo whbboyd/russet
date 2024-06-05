@@ -43,7 +43,7 @@ pub type Result<T> = std::result::Result<T, Err>;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-	init_tracing();
+	init_tracing()?;
 
 	// Hierarchy of configs
 	let config = {
@@ -143,15 +143,15 @@ async fn main() -> Result<()> {
 	Ok(())
 }
 
-fn init_tracing() {
+fn init_tracing() -> Result<()> {
 	let filter = EnvFilter::builder()
 		.with_default_directive(LevelFilter::INFO.into())
-		.from_env()
-		.unwrap();
+		.from_env()?;
 	let subscriber = tracing_subscriber::fmt::layer();
 //`		.with_span_events(FmtSpan::NEW | FmtSpan::CLOSE);
 	tracing_subscriber::registry()
 		.with(filter)
 		.with(subscriber)
 		.init();
+	Ok(())
 }

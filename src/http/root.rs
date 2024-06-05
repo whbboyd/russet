@@ -91,7 +91,8 @@ impl EditUserEntriesRequest {
 				},
 				"select-all" => select_all = true,
 				key if key.starts_with("select-") => {
-					let suffix = key.strip_prefix("select-").unwrap();
+					let suffix = key.strip_prefix("select-")
+						.expect("a string with starts with a given prefix has that prefix");
 					let id = ulid::Ulid::from_string(suffix)?;
 					selected_ids.push(EntryId(id));
 				},
