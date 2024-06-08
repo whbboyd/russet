@@ -34,7 +34,7 @@ Russet is licensed under the [AGPL](https://www.gnu.org/licenses/agpl-3.0.html).
 
 ## Source
 
-For the moment, the canonical source for Russet's source code is
-[https://github.com/whbboyd/russet](https://github.com/whbboyd/russet). It will
-likely move off of Github in the near future, but this is move convenient for
-now.
+Russet's canonical source mirror is on Sourcehut at
+[http://git.sr.ht/~whbboyd/russet](http://git.sr.ht/~whbboyd/russet). A mirror
+is maintained on Github at
+[https://github.com/whbboyd/russet](https://github.com/whbboyd/russet).

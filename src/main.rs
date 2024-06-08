@@ -34,7 +34,7 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
 // TODO: move off of Github
-static REPO_URL: &str = "https://github.com/whbboyd/russet";
+static REPO_URL: &str = "https://git.sr.ht/~whbboyd/russet";
 static APP_NAME: &str = "Russet";
 static VERSION: &str = env!("CARGO_PKG_VERSION");
 
