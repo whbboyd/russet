@@ -1,9 +1,3 @@
-extern crate atom_syndication;
-extern crate reqwest;
-extern crate rss;
-extern crate sqlx;
-extern crate tokio;
-
 mod conf;
 mod domain;
 mod feed;
