@@ -1,0 +1,17 @@
+<% include!("head.stpl"); %>
+		<div style="display: flex; justify-content: center;">
+			<form action="<%- relative_root %>user/<%- page_user.id.to_string() %>" method="post" class="dialog">
+				<div class="inputs">
+					<label for="id">Name:</label>
+					<input type="text" name="name" value="<%= page_user.name %>" disabled="true" />
+					<label for="id">ID:</label>
+					<input type="text" name="id" value="<%= page_user.id.to_string() %>" disabled="true" />
+					<label for="user_type">Type:</label>
+					<input type="text" name="user_type" value="<%= format!("{:?}", page_user.user_type) %>" disabled="true" />
+				</div>
+				<div class="controls">
+					<button disabled="true">Update</button>
+				</div>
+			</form>
+		</div>
+<% include!("foot.stpl"); %>

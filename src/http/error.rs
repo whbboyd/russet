@@ -10,6 +10,7 @@ use ulid::Ulid;
 pub enum HttpError {
 	BadRequest { description: String },
 	Unauthenticated { redirect_to: Option<String> },
+	Forbidden,
 	NotFound,
 	InternalError { description: String },
 }
@@ -48,6 +49,7 @@ impl IntoResponse for HttpError {
 					) );
 				return Redirect::to(&redirect).into_response();
 			},
+			HttpError::Forbidden => (StatusCode::FORBIDDEN, "You do not have access to this resource.".to_string()),
 			HttpError::NotFound => (StatusCode::NOT_FOUND, "No resource exists at this URL.".to_string()),
 			HttpError::InternalError { description } => {
 				let correlation_id = Ulid::new();
