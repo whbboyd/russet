@@ -5,6 +5,15 @@ pub struct Feed {
 	pub url: String,
 	pub title: String,
 }
+impl From<crate::persistence::model::Feed> for Feed {
+	fn from(value: crate::persistence::model::Feed) -> Self {
+		Feed {
+			id: value.id,
+			url: value.url.to_string(),
+			title: value.title,
+		}
+	}
+}
 
 pub struct Entry {
 	pub id: EntryId,

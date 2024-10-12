@@ -1,87 +1,88 @@
+mod update;
+
 use crate::domain::model::Feed;
 use crate::domain::RussetDomainService;
-use crate::{ Err, Result };
-use crate::model::{ EntryId, FeedId, UserId };
-use crate::persistence::model::{ Entry, Feed as PersistenceFeed };
+use crate::Result;
+use crate::model::{ EntryId, FeedId, UserId, Timestamp };
+use crate::persistence::model::{ Entry, Feed as PersistenceFeed, FeedCheck, WriteFeedCheck };
 use crate::persistence::{ RussetEntryPersistenceLayer, RussetFeedPersistenceLayer };
 use crate::feed::model::Feed as ReaderFeed;
 use reqwest::Url;
+use std::cmp::Ordering::{ Equal, Greater, Less };
 use std::collections::HashSet;
-use std::error::Error;
-use std::fmt::Display;
+use tracing::warn;
 use ulid::Ulid;
 
 impl <Persistence> RussetDomainService<Persistence>
 where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 
-	/// Update the stored entries for all feeds known to the persistence layer
-	pub async fn update_feeds(&self) -> std::result::Result<(), Vec<Err>> {
-		let fetch_index = self.persistence.get_and_increment_fetch_index().await
-			.map_err(|err| vec![err])?;
-		let feeds = self.persistence
+	/// Update the stored entries for the given feed.
+	///
+	/// Returns the [FeedCheck] generated from this update.
+	pub async fn update_feed(&self, feed_id: &FeedId) -> Result<FeedCheck> {
+		let now = Timestamp::now();
+		let feed = self.persistence.get_feed(feed_id).await?;
+		let last_check = self.persistence.get_last_feed_check(feed_id).await?;
+		let check_time = last_check.map_or(now, |check| check.next_check_time);
+		match now.cmp(&check_time) {
+			Less => {
+				warn!("Check was scheduled with future check time ({check_time:?}; now: {now:?})")
+			}
+			Equal => (), // Normal: check time is current time
+			Greater => (), // We missed the check. This is normal, but if we missed the check by a lot, we may want to know.
+		}
+
+		// Fetch the feed data. We do this now (before recording the check)
+		// because some of its details will need to feed back into the check.
+		// TODO: include the etag and handle errors (flag on the check) here
+		let reader_feed = self.fetch(&feed.url).await?;
+
+		// Now, generate the check. We need this to store the entries, because
+		// they must be tagged with the check that generated them.
+		let check = self
+			.build_check_and_update(check_time, feed_id, &reader_feed)
+			.await?;
+
+		Ok(check)
+	}
+
+	/// Get all feeds known to the persistence layer
+	pub async fn get_feeds(&self) -> impl IntoIterator<Item = Result<Feed>> + '_ {
+		self.persistence
 			.get_feeds()
 			.await
 			.into_iter()
-			.filter_map(|feed| feed.ok())
-			.collect::<Vec<PersistenceFeed>>();
-		let mut errors = vec![];
-		for feed in feeds {
-			if let Err(e) = self.update_feed(&feed, fetch_index).await {
-				#[derive(Debug)]
-				struct FeedUpdateError {
-					description: String,
-					source: Err,
-				}
-				impl Display for FeedUpdateError {
-					fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-						f.write_str(self.description.as_str())
-					}
-				}
-				impl Error for FeedUpdateError {
-					fn source(&self) -> Option<&(dyn Error + 'static)> {
-						Some(self.source.as_ref())
-					}
-				}
-
-				errors.push(Box::new(FeedUpdateError {
-					description: format!("Error updating feed {} ({:?})", feed.title, feed.id),
-					source: e,
-				} ).into() )
-			}
-		}
-		if errors.is_empty() {
-			Ok(())
-		} else {
-			Err(errors)
-		}
+			.map(|feed| {
+				feed.map(|feed| { feed.into() } )
+			} )
 	}
 
 	/// Given a URL, ensure the feed is stored in the persistence layer.
 	///
-	/// If a feed with that URL is already stored, its entries will be updated.
+	/// If a feed with that URL is already stored, no action is taken.
 	/// Otherwise, the feed will be downloaded and added to the persistence
 	/// layer.
 	pub async fn add_feed(&self, url: &Url) -> Result<FeedId> {
 		match self.persistence.get_feed_by_url(url).await? {
 			Some(feed) => {
-				let fetch_index = self.persistence.get_and_increment_fetch_index().await?;
-				self.update_feed(&feed, fetch_index).await?;
+				// TODO: Contemplate rescheduling the next check in this case.
 				Ok(feed.id)
 			}
 			None => {
-				let bytes = reqwest::get(url.clone())
-					.await?
-					.bytes()
-					.await?;
-				let reader_feed = self.feed_from_bytes(&bytes).await?;
+				let reader_feed = self.fetch(url).await?;
 				let feed = PersistenceFeed {
 					id: FeedId(Ulid::new()),
 					title: reader_feed.title.clone(),
 					url: url.clone(),
 				};
 				self.persistence.add_feed(&feed).await?;
-				let fetch_index = self.persistence.get_and_increment_fetch_index().await?;
-				self.update_with_entries(&feed, &reader_feed, fetch_index).await?;
+				// TODO: Add the feed to scheduling.
+				self.build_check_and_update(
+						Timestamp::now(),
+						&feed.id,
+						&reader_feed
+					).await?;
+
 				Ok(feed.id)
 			}
 		}
@@ -93,13 +94,7 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 			.await
 			.into_iter()
 			.map(|feed| {
-				feed.map(|feed| {
-					Feed {
-						id: feed.id,
-						url: feed.url.to_string(),
-						title: feed.title,
-					}
-				} )
+				feed.map(|feed| { feed.into() } )
 			} )
 			.collect()
 	}
@@ -108,31 +103,50 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 		self.persistence
 			.get_feed(feed_id)
 			.await
-			.map(|feed| {
-				Feed {
-					id: feed.id,
-					url: feed.url.to_string(),
-					title: feed.title,
-				}
-			} )
+			.map(|feed| { feed.into() } )
 	}
 
-	/// Update the persistence layer with `feed` (at fetch `fetch_index`)
-	async fn update_feed(&self, feed: &PersistenceFeed, fetch_index: u32) -> Result<()> {
-		let bytes = reqwest::get(feed.url.clone())
+	/// Fetch feed data from the remote system
+	async fn fetch(&self, url: &Url) -> Result<ReaderFeed> {
+		let bytes = reqwest::get(url.clone())
 				.await?
 				.bytes()
 				.await?;
 		// TODO: Store a reader hint with the feed to save redundant parsing effort
 		let reader_feed = self.feed_from_bytes(&bytes).await?;
-		self.update_with_entries(feed, &reader_feed, fetch_index).await
+		Ok(reader_feed)
 	}
 
-	/// Given a parsed `reader_feed`, update the persistence layer for `feed`
-	/// with the entries from it
-	async fn update_with_entries(&self, feed: &PersistenceFeed, reader_feed: &ReaderFeed, fetch_index: u32) -> Result<()> {
+	/// Given a parsed `reader_feed`, generate and persist a [FeedCheck] for it
+	/// and update the persistence layer with its entries
+	async fn build_check_and_update(
+		&self,
+		check_time: Timestamp,
+		feed_id: &FeedId,
+		reader_feed: &ReaderFeed,
+	) -> Result<FeedCheck> {
+		// Generate the check. We need this to store the entries, because
+		// they must be tagged with the check that generated them.
+		// TODO: Whole lotta logic goes here:
+		let next_check_time = check_time + self.default_feed_check_interval;
+		let check = self.persistence.add_feed_check(WriteFeedCheck {
+			feed_id: feed_id.clone(),
+			check_time,
+			next_check_time,
+			etag: None,
+		} ).await?;
+
+		// Finally, store the entries, tagged with the check.
+		self.update_with_entries(feed_id, &reader_feed, check.id).await?;
+
+		Ok(check)
+	}
+
+	/// Given a parsed `reader_feed`, update the persistence layer for the given
+	/// feed with the entries from it
+	async fn update_with_entries(&self, feed_id: &FeedId, reader_feed: &ReaderFeed, check_id: u64) -> Result<()> {
 		let known_internal_ids = self.persistence
-			.get_entries_for_feed(&feed.id)
+			.get_entries_for_feed(&feed_id)
 			.await
 			.into_iter()
 			.filter_map(|entry| entry.ok().map(|entry| entry.internal_id) )
@@ -142,9 +156,9 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 			.map (|entry| {
 				Entry {
 					id: EntryId(Ulid::new()),
-					feed_id: FeedId(feed.id.0.clone()),
+					feed_id: feed_id.clone(),
 					internal_id: entry.internal_id.clone(),
-					fetch_index,
+					check_id,
 					article_date: entry.article_date.clone(),
 					title: entry.title.clone(),
 					url: entry.url.clone(),
@@ -152,7 +166,7 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 			} )
 			.collect::<Vec<Entry>>();
 		for e in new_entries.as_slice() {
-			self.persistence.add_entry(e, &feed.id).await?;
+			self.persistence.add_entry(e, &feed_id).await?;
 		}
 		Ok(())
 	}

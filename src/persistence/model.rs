@@ -15,7 +15,7 @@ pub struct Entry {
 	pub id: EntryId,
 	pub feed_id: FeedId,
 	pub internal_id: String,
-	pub fetch_index: u32,
+	pub check_id: u64,
 	pub article_date: Timestamp,
 	pub title: String,
 	pub url: Option<Url>,
@@ -54,4 +54,34 @@ pub struct Session {
 pub struct UserEntry {
 	pub read: Option<Timestamp>,
 	pub tombstone: Option<Timestamp>,
+}
+
+/// Maintaining the feed check ID is a concern of the persistence layer, so the
+/// domain layer provides this version of [FeedCheck] without it for writes.
+#[derive(Clone, Debug)]
+pub struct WriteFeedCheck {
+	pub feed_id: FeedId,
+	pub check_time: Timestamp,
+	pub next_check_time: Timestamp,
+	pub etag: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct FeedCheck {
+	pub id: u64,
+	pub feed_id: FeedId,
+	pub check_time: Timestamp,
+	pub next_check_time: Timestamp,
+	pub etag: Option<String>,
+}
+impl FeedCheck {
+	pub fn from_write_feed_check(id: u64, check: WriteFeedCheck) -> FeedCheck {
+		FeedCheck {
+			id,
+			feed_id: check.feed_id,
+			check_time: check.check_time,
+			next_check_time: check.next_check_time,
+			etag: check.etag,
+		}
+	}
 }

@@ -1,7 +1,7 @@
-use crate::model::{ FeedId, UserId };
+use crate::model::{ FeedId, Pagination, UserId };
 use crate::persistence::RussetFeedPersistenceLayer;
 use crate::persistence::sql::SqlDatabase;
-use crate::persistence::model::Feed;
+use crate::persistence::model::{ Feed, FeedCheck, WriteFeedCheck };
 use crate::Result;
 use reqwest::Url;
 use ulid::Ulid;
@@ -121,6 +121,86 @@ impl RussetFeedPersistenceLayer for SqlDatabase {
 							url,
 						} )
 					} )
+					.collect()
+			},
+			Err(e) => vec![Err(Box::new(e))],
+		};
+		rv
+	}
+
+	#[tracing::instrument]
+	async fn add_feed_check(&self, feed_check: WriteFeedCheck) -> Result<FeedCheck> {
+		let tx = self.pool.begin().await?;
+		let next_fetch_index = sqlx::query!("
+				SELECT
+					MAX(id) AS id
+				FROM feed_checks;")
+			.fetch_one(&self.pool)
+			.await?
+			.id
+			.unwrap_or(0)
+			+ 1;
+		let feed_id = feed_check.feed_id.to_string();
+		let check_time: i64 = feed_check.check_time.try_into()?;
+		let next_check_time: i64 = feed_check.next_check_time.try_into()?;
+		sqlx::query!("
+				INSERT INTO feed_checks (
+					id, feed_id, check_time, next_check_time, etag
+				) VALUES ( ?, ?, ?, ?, ? )",
+				next_fetch_index,
+				feed_id,
+				check_time,
+				next_check_time,
+				feed_check.etag,
+			)
+			.execute(&self.pool)
+			.await?;
+		tx.commit().await?;
+		Ok(FeedCheck::from_write_feed_check(next_fetch_index.try_into()?, feed_check))
+	}
+
+	#[tracing::instrument]
+	async fn get_feed_checks(
+		&self,
+		feed_id: &FeedId,
+		pagination: &Pagination,
+	) -> Vec<Result<FeedCheck>> {
+		let feed_id = feed_id.to_string();
+		let page_size: i64 = match pagination.page_size.try_into() {
+			Ok(i) => i,
+			Err(e) => return vec![Err(e.into())]
+		};
+		let page_offset: i64 = match (pagination.page_num * pagination.page_size).try_into() {
+			Ok(i) => i,
+			Err(e) => return vec![Err(e.into())]
+		};
+		let rows = sqlx::query!("
+				SELECT
+					id, feed_id, check_time, next_check_time, etag
+				FROM feed_checks
+				WHERE feed_id = ?
+				ORDER BY id DESC
+				LIMIT ?
+				OFFSET ?;",
+				feed_id,
+				page_size,
+				page_offset,
+			)
+			.fetch_all(&self.pool)
+			.await;
+		let rv: Vec<Result<FeedCheck>> = match rows {
+			Ok(rows) => {
+				rows.into_iter().map(|row| {
+					let id: u64 = row.id.try_into()?;
+					let feed_id = FeedId(Ulid::from_string(&row.feed_id)?);
+					Ok(FeedCheck {
+						id,
+						feed_id,
+						check_time: row.check_time.try_into()?,
+						next_check_time: row.next_check_time.try_into()?,
+						etag: row.etag,
+					} )
+				} )
 					.collect()
 			},
 			Err(e) => vec![Err(Box::new(e))],

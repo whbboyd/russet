@@ -27,7 +27,6 @@ use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-// TODO: move off of Github
 static REPO_URL: &str = "https://git.sr.ht/~whbboyd/russet";
 static APP_NAME: &str = "Russet";
 static VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -82,6 +81,9 @@ async fn main() -> Result<()> {
 		db,
 		readers,
 		pepper.as_bytes().to_vec(),
+		// TODO
+		feed_check_interval,
+		feed_check_interval,
 		feed_check_interval,
 		disable_logins,
 	)?);

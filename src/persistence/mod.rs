@@ -3,7 +3,7 @@ pub mod sql;
 
 use crate::Result;
 use crate::model::{ EntryId, FeedId, Pagination, Timestamp, UserId };
-use model::{ Entry, Feed, Session, User, UserEntry };
+use model::{ Entry, Feed, FeedCheck, Session, User, UserEntry, WriteFeedCheck };
 use reqwest::Url;
 use std::future::Future;
 
@@ -38,6 +38,30 @@ pub trait RussetFeedPersistenceLayer: Send + Sync + std::fmt::Debug + 'static {
 	/// Get all the [Feed]s the given user is subscribed to
 	fn get_subscribed_feeds(&self, user_id: &UserId)
 		-> impl Future<Output = impl IntoIterator<Item = Result<Feed>>> + Send;
+
+	/// Add the given [WriteFeedCheck] to the persistence layer. The persistence
+	/// layer will generate the `id`.
+	fn add_feed_check(&self, feed_check: WriteFeedCheck)
+		-> impl Future<Output = Result<FeedCheck>> + Send;
+
+	/// Get all feed checks for the given feed, in reverse chronological order
+	/// (newest to oldest).
+	fn get_feed_checks(&self, feed_id: &FeedId, pagination: &Pagination)
+		-> impl Future<Output = impl IntoIterator<Item = Result<FeedCheck>>> + Send;
+
+	/// Get the latest feed check for the given feed.
+	///
+	/// The default implementation calls [get_feed_checks] with a [Pagination]
+	/// with `page_size` of 1.
+	fn get_last_feed_check(&self, feed_id: &FeedId)
+		-> impl Future<Output = Result<Option<FeedCheck>>> + Send
+	{ async {
+		self.get_feed_checks(feed_id, &Pagination { page_num: 0, page_size: 1 })
+			.await
+			.into_iter()
+			.next()
+			.transpose()
+	} }
 }
 
 pub trait RussetEntryPersistenceLayer: Send + Sync + std::fmt::Debug + 'static {
@@ -52,10 +76,6 @@ pub trait RussetEntryPersistenceLayer: Send + Sync + std::fmt::Debug + 'static {
 	/// Get all the [Entry]s for the [Feed] with the given ID.
 	fn get_entries_for_feed(&self, feed_id: &FeedId)
 		-> impl Future<Output = impl IntoIterator<Item = Result<Entry>>> + Send;
-
-	/// Atomically get-and-increment the fetch index.
-	fn get_and_increment_fetch_index(&self)
-		-> impl Future<Output = Result<u32>> + Send;
 
 	/// Get entries for all the feeds to which the given user is subscribed.
 	fn get_entries_for_user(&self, user_id: &UserId, pagination: &Pagination)

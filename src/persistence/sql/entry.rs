@@ -12,16 +12,17 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 	async fn add_entry(&self, entry: &Entry, feed_id: &FeedId) -> Result<()> {
 		let entry_id = entry.id.to_string();
 		let feed_id = feed_id.to_string();
+		let check_id: i64 = entry.check_id.try_into()?;
 		let article_date: i64 = entry.article_date.clone().try_into()?;
 		let entry_url = entry.url.clone().map(|url| url.to_string());
 		sqlx::query!("
 				INSERT INTO entries (
-					id, feed_id, internal_id, fetch_index, article_date, title, url
+					id, feed_id, internal_id, check_id, article_date, title, url
 				) VALUES ( ?, ?, ?, ?, ?, ?, ? )",
 				entry_id,
 				feed_id,
 				entry.internal_id,
-				entry.fetch_index,
+				check_id,
 				article_date,
 				entry.title,
 				entry_url,
@@ -36,7 +37,7 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 		let entry_id = id.to_string();
 		let row = sqlx::query!("
 				SELECT
-					id, feed_id, internal_id, fetch_index, article_date, title, url
+					id, feed_id, internal_id, check_id, article_date, title, url
 				FROM entries
 				WHERE id = ?;",
 				entry_id,
@@ -50,7 +51,7 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 			id,
 			feed_id,
 			internal_id: row.internal_id,
-			fetch_index: row.fetch_index as u32,
+			check_id: row.check_id.try_into()?,
 			article_date: row.article_date.into(),
 			title: row.title,
 			url,
@@ -63,10 +64,10 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 		// TODO: Maybe do paging later. Or figure out how to stream from sqlx.
 		let rows = sqlx::query!("
 				SELECT
-					id, feed_id, internal_id, fetch_index, article_date, title, url
+					id, feed_id, internal_id, check_id, article_date, title, url
 				FROM entries
 				WHERE feed_id = ?
-				ORDER BY fetch_index DESC, article_date DESC;",
+				ORDER BY check_id DESC, article_date DESC;",
 				feed_id,
 			)
 			.fetch_all(&self.pool)
@@ -81,7 +82,7 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 						id,
 						feed_id,
 						internal_id: row.internal_id,
-						fetch_index: row.fetch_index as u32,
+						check_id: row.check_id.try_into()?,
 						article_date: row.article_date.into(),
 						title: row.title,
 						url,
@@ -92,19 +93,6 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 			Err(e) => vec![Err(Box::new(e))],
 		};
 		rv
-	}
-
-	#[tracing::instrument]
-	async fn get_and_increment_fetch_index(&self) -> Result<u32> {
-		let row = sqlx::query!("
-				UPDATE metadata
-				SET fetch_index = fetch_index + 1
-				RETURNING fetch_index"
-			)
-			.fetch_one(&self.pool)
-			.await?;
-		let index = (row.fetch_index - 1).try_into()?;
-		Ok(index)
 	}
 
 	#[tracing::instrument]
@@ -145,7 +133,7 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 		// Query the entry first to make sure it actually exists
 		let row = sqlx::query!("
 				SELECT
-					id, feed_id, internal_id, fetch_index, article_date, title, url
+					id, feed_id, internal_id, check_id, article_date, title, url
 				FROM entries
 				WHERE id = ?;",
 				entry_id,
@@ -175,7 +163,7 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 			id,
 			feed_id,
 			internal_id: row.internal_id,
-			fetch_index: row.fetch_index as u32,
+			check_id: row.check_id.try_into()?,
 			article_date: row.article_date.into(),
 			title: row.title,
 			url,
@@ -210,13 +198,13 @@ impl SqlDatabase {
 		// This query is this way because in order to pass it to query!, it must
 		// be a &'static str, which means no dynamically-added query clauses.
 		// The (? OR id = ?) clauses allow us to skip these checks if we weren't
-		// provied an ID to check against.
+		// provided an ID to check against.
 		let rows = sqlx::query!(r#"
 				SELECT
 					e.id AS "id!",
 					e.feed_id AS "feed_id!",
 					e.internal_id AS "internal_id!",
-					e.fetch_index AS "fetch_index!",
+					e.check_id AS "check_id!",
 					e.article_date AS "article_date!",
 					e.title AS "title!",
 					e.url,
@@ -231,7 +219,7 @@ impl SqlDatabase {
 				WHERE s.user_id = ?
 					AND (? OR s.feed_id = ?)
 					AND (? OR e.id = ?)
-				ORDER BY fetch_index DESC, article_date DESC
+				ORDER BY check_id DESC, article_date DESC
 				LIMIT ?
 				OFFSET ?;"#,
 				user_id_str,
@@ -254,7 +242,7 @@ impl SqlDatabase {
 						id,
 						feed_id,
 						internal_id: row.internal_id,
-						fetch_index: row.fetch_index as u32,
+						check_id: row.check_id.try_into()?,
 						article_date: row.article_date.into(),
 						title: row.title,
 						url,

@@ -53,12 +53,12 @@ impl IntoResponse for HttpError {
 			HttpError::NotFound => (StatusCode::NOT_FOUND, "No resource exists at this URL.".to_string()),
 			HttpError::InternalError { description } => {
 				let correlation_id = Ulid::new();
-				let description = format!("Internal server error: {description} ({correlation_id})");
+				let description = format!("Internal server error: {description} (Correlation ID: {correlation_id})");
 				error!(description);
 				// Hide full errors from external users in production.
 				// TODO: This should actually be runtime-configurable.
 				#[cfg(not(debug_assertions))]
-				let description = format!("Internal server error ({correlation_id})");
+				let description = format!("Internal server error (Correlation ID: {correlation_id})");
 				(StatusCode::INTERNAL_SERVER_ERROR, description)
 			}
 		};
