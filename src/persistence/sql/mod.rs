@@ -7,6 +7,7 @@ use crate::model::Timestamp;
 use crate::persistence::RussetPersistenceLayer;
 use crate::Result;
 use sqlx::{ Pool, Sqlite };
+use sqlx::pool::PoolOptions;
 use std::path::Path;
 use std::time::{ Duration, SystemTime };
 
@@ -19,7 +20,9 @@ impl SqlDatabase {
 		let path = db_path
 			.to_str()
 			.ok_or::<Err>("db_path is not valid UTF-8".into())?;
-		let pool = Pool::<Sqlite>::connect(path).await?;
+		// TODO: Write contention in sqlite can ause failures. Sharing a single
+		// connetion reduces throughput, but should be more durable.
+		let pool = PoolOptions::<Sqlite>::new().max_connections(1).connect(path).await?;
 		sqlx::migrate!("db/migrations/").run(&pool).await?;
 		Ok(SqlDatabase { pool })
 	}
