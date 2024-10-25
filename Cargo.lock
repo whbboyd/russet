@@ -1976,7 +1976,7 @@ dependencies = [
 
 [[package]]
 name = "russet"
-version = "0.12.2"
+version = "0.13.0"
 dependencies = [
  "argon2",
  "atom_syndication",
