@@ -130,12 +130,12 @@ impl RussetFeedPersistenceLayer for SqlDatabase {
 
 	#[tracing::instrument]
 	async fn add_feed_check(&self, feed_check: WriteFeedCheck) -> Result<FeedCheck> {
-		let tx = self.pool.begin().await?;
+		let mut tx = self.pool.begin().await?;
 		let next_fetch_index = sqlx::query!("
 				SELECT
 					MAX(id) AS id
 				FROM feed_checks;")
-			.fetch_one(&self.pool)
+			.fetch_one(&mut *tx)
 			.await?
 			.id
 			.unwrap_or(0)
@@ -153,7 +153,7 @@ impl RussetFeedPersistenceLayer for SqlDatabase {
 				next_check_time,
 				feed_check.etag,
 			)
-			.execute(&self.pool)
+			.execute(&mut *tx)
 			.await?;
 		tx.commit().await?;
 		Ok(FeedCheck::from_write_feed_check(next_fetch_index.try_into()?, feed_check))
