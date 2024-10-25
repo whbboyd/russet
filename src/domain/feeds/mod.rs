@@ -8,9 +8,7 @@ use crate::persistence::model::{ Entry, Feed as PersistenceFeed, FeedCheck, Writ
 use crate::persistence::{ RussetEntryPersistenceLayer, RussetFeedPersistenceLayer };
 use crate::feed::model::Feed as ReaderFeed;
 use reqwest::Url;
-use std::cmp::Ordering::{ Equal, Greater, Less };
 use std::collections::HashSet;
-use tracing::warn;
 use ulid::Ulid;
 
 impl <Persistence> RussetDomainService<Persistence>
@@ -19,18 +17,10 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 	/// Update the stored entries for the given feed.
 	///
 	/// Returns the [FeedCheck] generated from this update.
-	pub async fn update_feed(&self, feed_id: &FeedId) -> Result<FeedCheck> {
-		let now = Timestamp::now();
+	pub async fn update_feed(&self, feed_id: &FeedId, check_time: &Timestamp)
+		-> Result<FeedCheck>
+	{
 		let feed = self.persistence.get_feed(feed_id).await?;
-		let last_check = self.persistence.get_last_feed_check(feed_id).await?;
-		let check_time = last_check.map_or(now, |check| check.next_check_time);
-		match now.cmp(&check_time) {
-			Less => {
-				warn!("Check was scheduled with future check time ({check_time:?}; now: {now:?})")
-			}
-			Equal => (), // Normal: check time is current time
-			Greater => (), // We missed the check. This is normal, but if we missed the check by a lot, we may want to know.
-		}
 
 		// Fetch the feed data. We do this now (before recording the check)
 		// because some of its details will need to feed back into the check.
@@ -40,7 +30,7 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 		// Now, generate the check. We need this to store the entries, because
 		// they must be tagged with the check that generated them.
 		let check = self
-			.build_check_and_update(check_time, feed_id, &reader_feed)
+			.build_check_and_update(&check_time, &feed_id, &reader_feed)
 			.await?;
 
 		Ok(check)
@@ -78,7 +68,7 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 				self.persistence.add_feed(&feed).await?;
 				// TODO: Add the feed to scheduling.
 				self.build_check_and_update(
-						Timestamp::now(),
+						&Timestamp::now(),
 						&feed.id,
 						&reader_feed
 					).await?;
@@ -106,6 +96,15 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 			.map(|feed| { feed.into() } )
 	}
 
+	pub async fn get_last_feed_check(&self, feed_id: &FeedId)
+		-> Result<Option<FeedCheck>>
+	{
+		self.persistence
+			.get_last_feed_check(feed_id)
+			.await
+	}
+
+
 	/// Fetch feed data from the remote system
 	async fn fetch(&self, url: &Url) -> Result<ReaderFeed> {
 		let bytes = reqwest::get(url.clone())
@@ -121,17 +120,17 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 	/// and update the persistence layer with its entries
 	async fn build_check_and_update(
 		&self,
-		check_time: Timestamp,
+		check_time: &Timestamp,
 		feed_id: &FeedId,
 		reader_feed: &ReaderFeed,
 	) -> Result<FeedCheck> {
 		// Generate the check. We need this to store the entries, because
 		// they must be tagged with the check that generated them.
 		// TODO: Whole lotta logic goes here:
-		let next_check_time = check_time + self.default_feed_check_interval;
+		let next_check_time = *check_time + self.default_feed_check_interval;
 		let check = self.persistence.add_feed_check(WriteFeedCheck {
 			feed_id: feed_id.clone(),
-			check_time,
+			check_time: check_time.clone(),
 			next_check_time,
 			etag: None,
 		} ).await?;

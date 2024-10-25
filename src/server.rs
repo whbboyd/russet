@@ -81,10 +81,43 @@ where Persistence: RussetPersistenceLayer {
 	let token = CancellationToken::new();
 	let captured_token = token.clone();
 	task_tracker.spawn(async move {
+		// Initial wait. Pull the latest check; if there is one and it has a
+		// future next check time, wait until then.
+		let check = domain_service.get_last_feed_check(&feed_id).await;
+		let now = Timestamp::now();
+		let mut check_time = match check {
+			Ok(None) => now,
+			Ok(Some(check)) => {
+				// If the scheduled next check is in the past, we missed it.
+				// Don't wait, and the check time is now.
+				if check.next_check_time < now {
+					now
+				} else {
+					if let WaitResult::Cancellation = wait_until(
+						check.next_check_time,
+						&captured_token,
+					).await {
+						return
+					}
+					check.next_check_time
+				}
+			}
+			Err(err) => {
+				let next_check = Timestamp::now() + domain_service.default_feed_check_interval;
+				error!(error = err, "Error determining next check time for feed {feed_id:?}; scheduling next check for {next_check:?}");
+				if let WaitResult::Cancellation = wait_until(
+					next_check,
+					&captured_token,
+				).await {
+					return
+				}
+				next_check
+			}
+		};
 		loop {
 			// Perform the check
 			info!("Checking for updates to {feed_id:?}");
-			let next_check = match domain_service.update_feed(&feed_id).await {
+			check_time = match domain_service.update_feed(&feed_id, &check_time).await {
 				Ok(check) => check.next_check_time,
 				Err(err) => {
 					let next_check = Timestamp::now() + domain_service.default_feed_check_interval;
@@ -94,9 +127,11 @@ where Persistence: RussetPersistenceLayer {
 			};
 
 			// Wait for either next scheduled check or cancellation
-			select! {
-				_ = captured_token.cancelled() => { break }
-				_ = tokio::time::sleep(Timestamp::until(next_check)) => { }
+			if let WaitResult::Cancellation = wait_until(
+				check_time,
+				&captured_token,
+			).await {
+				return
 			}
 		}
 	} );
@@ -121,11 +156,26 @@ where Persistence: RussetPersistenceLayer {
 			if let Err(e) = domain_service.cleanup_expired_sessions().await {
 				error!(error = e.as_ref(), "Error removing expired sessions");
 			}
-			select! {
-				_ = captured_token.cancelled() => { break }
-				_ = tokio::time::sleep(SESSION_CLEANUP_INTERVAL) => { }
+			if let WaitResult::Cancellation = wait_until(
+				Timestamp::now() + SESSION_CLEANUP_INTERVAL,
+				&captured_token,
+			).await {
+				return
 			}
 		}
 	} );
 	token
+}
+
+/// Wait [until] the given timestamp, or until [token] is cancelled.
+async fn wait_until(until: Timestamp, token: &CancellationToken) -> WaitResult {
+	let delay = Timestamp::until(until);
+	select! {
+		_ = tokio::time::sleep(delay) => { return WaitResult::Timeout }
+		_ = token.cancelled() => { return WaitResult::Cancellation }
+	}
+}
+enum WaitResult {
+	Timeout,
+	Cancellation,
 }
