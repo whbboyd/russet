@@ -7,6 +7,7 @@ use crate::model::{ EntryId, FeedId, UserId, Timestamp };
 use crate::persistence::model::{ Entry, Feed as PersistenceFeed, FeedCheck, WriteFeedCheck };
 use crate::persistence::{ RussetEntryPersistenceLayer, RussetFeedPersistenceLayer };
 use crate::feed::model::Feed as ReaderFeed;
+use reqwest::header::ETAG;
 use reqwest::Url;
 use std::collections::HashSet;
 use ulid::Ulid;
@@ -70,7 +71,7 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 				self.build_check_and_update(
 						&Timestamp::now(),
 						&feed.id,
-						&reader_feed
+						&reader_feed,
 					).await?;
 
 				Ok(feed.id)
@@ -107,12 +108,20 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 
 	/// Fetch feed data from the remote system
 	async fn fetch(&self, url: &Url) -> Result<ReaderFeed> {
-		let bytes = reqwest::get(url.clone())
-				.await?
+		let response = reqwest::get(url.clone())
+				.await?;
+		let etag = response
+				.headers()
+				.get(ETAG)
+				// If some jerk sends us an etag with invalid UTF-8, we'll just
+				// drop it.
+				.and_then(|value| value.to_str().map(|str| str.to_string()).ok());
+		let bytes = response
 				.bytes()
 				.await?;
 		// TODO: Store a reader hint with the feed to save redundant parsing effort
-		let reader_feed = self.feed_from_bytes(&bytes).await?;
+		let mut reader_feed = self.feed_from_bytes(&bytes).await?;
+		reader_feed.etag = etag;
 		Ok(reader_feed)
 	}
 
@@ -132,7 +141,7 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 			feed_id: feed_id.clone(),
 			check_time: check_time.clone(),
 			next_check_time,
-			etag: None,
+			etag: reader_feed.etag.clone(),
 		} ).await?;
 
 		// Finally, store the entries, tagged with the check.
@@ -183,12 +192,15 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 				reader.read_feed(&bytes)
 			} );
 		}
+		let mut parsed_feed: Option<ReaderFeed> = None;
 		for future in acc {
-			if let Ok(feed) = future.await {
-				return Ok(feed)
+			if parsed_feed.is_some() {
+				drop(future);
+			} else if let Ok(feed) = future.await {
+				parsed_feed = Some(feed);
 			}
 		}
-		Err("Unable to load feed".into())
+		parsed_feed.ok_or_else(|| "Unable to load feed".into())
 	}
 }
 

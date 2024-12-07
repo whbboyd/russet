@@ -36,6 +36,7 @@ impl RussetFeedReader for RssFeedReader {
 		Ok(Feed {
 			title,
 			entries,
+			etag: None,
 		})
 	}
 }

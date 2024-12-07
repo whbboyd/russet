@@ -34,6 +34,7 @@ impl RussetFeedReader for AtomFeedReader {
 		Ok(Feed {
 			title,
 			entries,
+			etag: None,
 		})
 	}
 }

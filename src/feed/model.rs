@@ -5,6 +5,7 @@ use reqwest::Url;
 pub struct Feed {
 	pub title: String,
 	pub entries: Vec<Entry>,
+	pub etag: Option<String>,
 }
 
 #[derive(Debug)]
