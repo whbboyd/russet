@@ -2,6 +2,7 @@ use crate::Result;
 use crate::domain::RussetDomainService;
 use crate::http::{ AppState, russet_router };
 use crate::model::{ FeedId, Timestamp };
+use crate::persistence::model::FeedCheck;
 use crate::persistence::RussetPersistenceLayer;
 use std::sync::Arc;
 use std::time::Duration;
@@ -78,6 +79,18 @@ async fn feed_check<Persistence>(
 	task_tracker: TaskTracker,
 ) -> CancellationToken
 where Persistence: RussetPersistenceLayer {
+	enum CheckState {
+		Check(FeedCheck),
+		NoCheck(Timestamp),
+	}
+	impl CheckState {
+		fn check_time(&self) -> &Timestamp {
+			match self {
+				CheckState::Check(check) => &check.next_check_time,
+				CheckState::NoCheck(check_time) => check_time,
+			}
+		}
+	}
 	let token = CancellationToken::new();
 	let captured_token = token.clone();
 	task_tracker.spawn(async move {
@@ -85,13 +98,14 @@ where Persistence: RussetPersistenceLayer {
 		// future next check time, wait until then.
 		let check = domain_service.get_last_feed_check(&feed_id).await;
 		let now = Timestamp::now();
-		let mut check_time = match check {
-			Ok(None) => now,
-			Ok(Some(check)) => {
+		let mut check_state = match check {
+			Ok(None) => CheckState::NoCheck(now),
+			Ok(Some(mut check)) => {
 				// If the scheduled next check is in the past, we missed it.
 				// Don't wait, and the check time is now.
 				if check.next_check_time < now {
-					now
+					check.next_check_time = now;
+					CheckState::Check(check)
 				} else {
 					if let WaitResult::Cancellation = wait_until(
 						check.next_check_time,
@@ -99,11 +113,11 @@ where Persistence: RussetPersistenceLayer {
 					).await {
 						return
 					}
-					check.next_check_time
+					CheckState::Check(check)
 				}
 			}
 			Err(err) => {
-				let next_check = Timestamp::now() + domain_service.default_feed_check_interval;
+				let next_check = now + domain_service.default_feed_check_interval;
 				error!(error = err, "Error determining next check time for feed {feed_id:?}; scheduling next check for {next_check:?}");
 				if let WaitResult::Cancellation = wait_until(
 					next_check,
@@ -111,24 +125,26 @@ where Persistence: RussetPersistenceLayer {
 				).await {
 					return
 				}
-				next_check
+				CheckState::NoCheck(next_check)
 			}
 		};
+
+		// Check loop
 		loop {
 			// Perform the check
 			info!("Checking for updates to {feed_id:?}");
-			check_time = match domain_service.update_feed(&feed_id, &check_time).await {
-				Ok(check) => check.next_check_time,
+			check_state = match domain_service.update_feed(&feed_id, &check_state.check_time()).await {
+				Ok(check) => CheckState::Check(check),
 				Err(err) => {
 					let next_check = Timestamp::now() + domain_service.default_feed_check_interval;
 					error!(error = err, "Error performing check for feed {feed_id:?}; scheduling next check for {next_check:?}");
-					next_check
+					CheckState::NoCheck(next_check)
 				}
 			};
 
 			// Wait for either next scheduled check or cancellation
 			if let WaitResult::Cancellation = wait_until(
-				check_time,
+				check_state.check_time().clone(),
 				&captured_token,
 			).await {
 				return
