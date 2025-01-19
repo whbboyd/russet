@@ -69,6 +69,7 @@ enum Action {
 #[derive(Debug)]
 pub struct EditUserEntriesRequest {
 	action: Action,
+	#[allow(dead_code)]
 	select_all: bool,
 	selected_ids: Vec<EntryId>,
 }

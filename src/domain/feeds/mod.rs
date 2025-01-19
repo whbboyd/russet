@@ -275,7 +275,9 @@ impl CheckState {
 enum FetchResponse {
 	Feed(ReaderFeed),
 	EtagMatch,
+	#[allow(dead_code)]
 	ClientError(StatusCode),
+	#[allow(dead_code)]
 	ServerError(StatusCode),
 }
 

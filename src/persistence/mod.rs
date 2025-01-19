@@ -63,6 +63,7 @@ pub trait RussetEntryPersistenceLayer: Send + Sync + std::fmt::Debug + 'static {
 		-> impl Future<Output = Result<()>> + Send;
 
 	/// Get a specified [Entry] by ID
+	#[allow(dead_code)]
 	fn get_entry(&self, id: &EntryId)
 		-> impl Future<Output = Result<Entry>> + Send;
 

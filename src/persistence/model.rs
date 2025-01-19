@@ -69,7 +69,9 @@ pub struct WriteFeedCheck {
 #[derive(Clone, Debug)]
 pub struct FeedCheck {
 	pub id: u64,
+	#[allow(dead_code)]
 	pub feed_id: FeedId,
+	#[allow(dead_code)]
 	pub check_time: Timestamp,
 	pub next_check_time: Timestamp,
 	pub etag: Option<String>,
