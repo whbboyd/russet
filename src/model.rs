@@ -24,7 +24,11 @@ impl Timestamp {
 }
 impl std::fmt::Debug for Timestamp {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		f.write_fmt(format_args!("{:?}", self.0))
+		let unix_secs = match self.0.duration_since(SystemTime::UNIX_EPOCH) {
+			Ok(duration) => duration.as_secs_f64(),
+			Err(backwards) => -backwards.duration().as_secs_f64(),
+		};
+		f.write_fmt(format_args!("{}", unix_secs))
 	}
 }
 impl std::ops::Add<Duration> for Timestamp {
