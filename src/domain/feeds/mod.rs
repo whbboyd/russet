@@ -7,7 +7,8 @@ use crate::model::{ EntryId, FeedId, UserId, Timestamp };
 use crate::persistence::model::{ Entry, Feed as PersistenceFeed, FeedCheck, WriteFeedCheck };
 use crate::persistence::{ RussetEntryPersistenceLayer, RussetFeedPersistenceLayer };
 use crate::feed::model::Feed as ReaderFeed;
-use reqwest::header::ETAG;
+use reqwest::header::{ ETAG, IF_NONE_MATCH };
+use reqwest::StatusCode;
 use reqwest::Url;
 use std::collections::HashSet;
 use ulid::Ulid;
@@ -18,20 +19,19 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 	/// Update the stored entries for the given feed.
 	///
 	/// Returns the [FeedCheck] generated from this update.
-	pub async fn update_feed(&self, feed_id: &FeedId, check_time: &Timestamp)
+	pub async fn update_feed(&self, feed_id: &FeedId, last_check: &CheckState)
 		-> Result<FeedCheck>
 	{
 		let feed = self.persistence.get_feed(feed_id).await?;
 
 		// Fetch the feed data. We do this now (before recording the check)
 		// because some of its details will need to feed back into the check.
-		// TODO: include the etag and handle errors (flag on the check) here
-		let reader_feed = self.fetch(&feed.url).await?;
+		let fetch_response = self.fetch(&feed.url, last_check.etag()).await?;
 
 		// Now, generate the check. We need this to store the entries, because
 		// they must be tagged with the check that generated them.
 		let check = self
-			.build_check_and_update(&check_time, &feed_id, &reader_feed)
+			.build_check_and_update(last_check, feed_id, &fetch_response)
 			.await?;
 
 		Ok(check)
@@ -60,21 +60,26 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 				Ok(feed.id)
 			}
 			None => {
-				let reader_feed = self.fetch(url).await?;
-				let feed = PersistenceFeed {
-					id: FeedId(Ulid::new()),
-					title: reader_feed.title.clone(),
-					url: url.clone(),
-				};
-				self.persistence.add_feed(&feed).await?;
-				// TODO: Add the feed to scheduling.
-				self.build_check_and_update(
-						&Timestamp::now(),
-						&feed.id,
-						&reader_feed,
-					).await?;
+				let fetch_response = self.fetch(url, &None).await?;
+				match &fetch_response {
+					FetchResponse::Feed(reader_feed) => {
+						let feed = PersistenceFeed {
+							id: FeedId(Ulid::new()),
+							title: reader_feed.title.clone(),
+							url: url.clone(),
+						};
+						self.persistence.add_feed(&feed).await?;
+						// TODO: Add the feed to scheduling.
+						self.build_check_and_update(
+								&CheckState::NoCheck(Timestamp::now()),
+								&feed.id,
+								&fetch_response,
+							).await?;
 
-				Ok(feed.id)
+						Ok(feed.id)
+					}
+					_ => Err(format!("Error on initial feed fetch: {:?}; not adding feed", fetch_response).into())
+				}
 			}
 		}
 	}
@@ -107,45 +112,80 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 
 
 	/// Fetch feed data from the remote system
-	async fn fetch(&self, url: &Url) -> Result<ReaderFeed> {
-		let response = reqwest::get(url.clone())
-				.await?;
+	async fn fetch(&self, url: &Url, etag: &Option<String>) -> Result<FetchResponse> {
+		let mut request = self.http_client
+				.get(url.clone());
+		if let Some(etag) = etag { request = request.header(IF_NONE_MATCH, etag) }
+
+		let response = request.send().await?;
+
+		// Special cases to check.
+
+		// Not modified (304): our etag matched, no updates.
+		if response.status() == StatusCode::NOT_MODIFIED {
+			return Ok(FetchResponse::EtagMatch)
+		}
+		// TODO: cache control indicated no updates
+		// Client error: probably something is wrong with our feed record. Under
+		// most circumstances these won't recover, but servers always lie, so we
+		// won't assume that.
+		if response.status().is_client_error() {
+			return Ok(FetchResponse::ClientError(response.status()))
+		}
+		// Server error. Under most circumstances these will eventually recover.
+		// (But servers always lie.)
+		if response.status().is_server_error() {
+			return Ok(FetchResponse::ServerError(response.status()))
+		}
+
+		// Otherwise, we have a real response. Pull out the headers we're
+		// interested in and attempt to parse the body.
 		let etag = response
 				.headers()
 				.get(ETAG)
 				// If some jerk sends us an etag with invalid UTF-8, we'll just
 				// drop it.
 				.and_then(|value| value.to_str().map(|str| str.to_string()).ok());
-		let bytes = response
-				.bytes()
-				.await?;
+		let bytes = response.bytes().await?;
 		// TODO: Store a reader hint with the feed to save redundant parsing effort
 		let mut reader_feed = self.feed_from_bytes(&bytes).await?;
 		reader_feed.etag = etag;
-		Ok(reader_feed)
+		Ok(FetchResponse::Feed(reader_feed))
 	}
 
 	/// Given a parsed `reader_feed`, generate and persist a [FeedCheck] for it
 	/// and update the persistence layer with its entries
 	async fn build_check_and_update(
 		&self,
-		check_time: &Timestamp,
+		check_state: &CheckState,
 		feed_id: &FeedId,
-		reader_feed: &ReaderFeed,
+		fetch_response: &FetchResponse,
 	) -> Result<FeedCheck> {
 		// Generate the check. We need this to store the entries, because
 		// they must be tagged with the check that generated them.
 		// TODO: Whole lotta logic goes here:
-		let next_check_time = *check_time + self.default_feed_check_interval;
+		let next_check_time = match fetch_response {
+			FetchResponse::Feed(_) | FetchResponse::EtagMatch => *check_state.check_time() + self.default_feed_check_interval,
+			FetchResponse::ClientError(_) => *check_state.check_time() + self.max_feed_check_interval,
+			FetchResponse::ServerError(_) => *check_state.check_time() + self.default_feed_check_interval,
+		};
+		let etag = match fetch_response {
+			FetchResponse::Feed(feed) => feed.etag.clone(),
+			FetchResponse::EtagMatch => check_state.etag().clone(),
+			_ => None,
+		};
+
 		let check = self.persistence.add_feed_check(WriteFeedCheck {
 			feed_id: feed_id.clone(),
-			check_time: check_time.clone(),
+			check_time: check_state.check_time().clone(),
 			next_check_time,
-			etag: reader_feed.etag.clone(),
+			etag,
 		} ).await?;
 
 		// Finally, store the entries, tagged with the check.
-		self.update_with_entries(feed_id, &reader_feed, check.id).await?;
+		if let FetchResponse::Feed(reader_feed) = fetch_response {
+			self.update_with_entries(feed_id, &reader_feed, check.id).await?;
+		}
 
 		Ok(check)
 	}
@@ -202,5 +242,40 @@ where Persistence: RussetEntryPersistenceLayer + RussetFeedPersistenceLayer {
 		}
 		parsed_feed.ok_or_else(|| "Unable to load feed".into())
 	}
+}
+
+/// Previous check information.
+///
+/// We might have a previous [FeedCheck], in which case we should use its data.
+/// But we also might not (for example, on initial update of a feed). In that
+/// case, we still have *some* data—for instance, the scheduled time—but not a
+/// full check object.
+#[derive(Debug)]
+pub enum CheckState {
+	Check(FeedCheck),
+	NoCheck(Timestamp),
+}
+impl CheckState {
+	pub fn check_time(&self) -> &Timestamp {
+		match self {
+			CheckState::Check(check) => &check.next_check_time,
+			CheckState::NoCheck(check_time) => check_time,
+		}
+	}
+	pub fn etag(&self) -> &Option<String> {
+		match self {
+			CheckState::Check(check) => &check.etag,
+			CheckState::NoCheck(_) => &None,
+		}
+	}
+}
+
+/// Fetch result.
+#[derive(Debug)]
+enum FetchResponse {
+	Feed(ReaderFeed),
+	EtagMatch,
+	ClientError(StatusCode),
+	ServerError(StatusCode),
 }
 

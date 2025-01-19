@@ -1,8 +1,8 @@
 use crate::Result;
+use crate::domain::feeds::CheckState;
 use crate::domain::RussetDomainService;
 use crate::http::{ AppState, russet_router };
 use crate::model::{ FeedId, Timestamp };
-use crate::persistence::model::FeedCheck;
 use crate::persistence::RussetPersistenceLayer;
 use std::sync::Arc;
 use std::time::Duration;
@@ -79,18 +79,6 @@ async fn feed_check<Persistence>(
 	task_tracker: TaskTracker,
 ) -> CancellationToken
 where Persistence: RussetPersistenceLayer {
-	enum CheckState {
-		Check(FeedCheck),
-		NoCheck(Timestamp),
-	}
-	impl CheckState {
-		fn check_time(&self) -> &Timestamp {
-			match self {
-				CheckState::Check(check) => &check.next_check_time,
-				CheckState::NoCheck(check_time) => check_time,
-			}
-		}
-	}
 	let token = CancellationToken::new();
 	let captured_token = token.clone();
 	task_tracker.spawn(async move {
@@ -133,7 +121,7 @@ where Persistence: RussetPersistenceLayer {
 		loop {
 			// Perform the check
 			info!("Checking for updates to {feed_id:?}");
-			check_state = match domain_service.update_feed(&feed_id, &check_state.check_time()).await {
+			check_state = match domain_service.update_feed(&feed_id, &check_state).await {
 				Ok(check) => CheckState::Check(check),
 				Err(err) => {
 					let next_check = Timestamp::now() + domain_service.default_feed_check_interval;

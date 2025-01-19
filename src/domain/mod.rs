@@ -3,8 +3,10 @@ pub mod feeds;
 pub mod model;
 pub mod user;
 
+use crate::{ APP_NAME, VERSION };
 use crate::feed::RussetFeedReader;
 use crate::Result;
+use reqwest::Client;
 use std::time::Duration;
 
 pub struct RussetDomainService<Persistence>
@@ -16,6 +18,7 @@ where Persistence: std::fmt::Debug {
 	pub default_feed_check_interval: Duration,
 	max_feed_check_interval: Duration,
 	disable_logins: bool,
+	http_client: Client,
 }
 impl <Persistence> RussetDomainService<Persistence>
 where Persistence: std::fmt::Debug {
@@ -40,6 +43,11 @@ where Persistence: std::fmt::Debug {
 			return Err(format!("Default check interval ${default_interval}s is \
 				greater than max interval ${max_interval}s").into());
 		}
+		let http_client = Client::builder()
+				.user_agent(format!("{APP_NAME}/{VERSION}"))
+				.timeout(min_feed_check_interval / 2)
+				.build()
+				.expect("HTTP client should build");
 		Ok(RussetDomainService {
 			persistence,
 			readers,
@@ -48,6 +56,7 @@ where Persistence: std::fmt::Debug {
 			default_feed_check_interval,
 			max_feed_check_interval,
 			disable_logins,
+			http_client,
 		} )
 	}
 }
