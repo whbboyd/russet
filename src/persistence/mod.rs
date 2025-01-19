@@ -19,14 +19,7 @@ pub trait RussetFeedPersistenceLayer: Send + Sync + std::fmt::Debug + 'static {
 
 	/// Get all the [Feed]s stored by this persistence layer
 	fn get_feeds(&self)
-		-> impl Future<
-			Output = impl IntoIterator<
-				Item = Result<Feed>,
-				IntoIter = impl Iterator<
-					Item = Result<Feed>
-				>
-			> + Send
-		> + Send;
+		-> impl Future<Output = impl IntoIterator<Item = Result<Feed>> + Send> + Send;
 
 	/// Get a specific [Feed] by ID
 	fn get_feed(&self, id: &FeedId) -> impl Future<Output = Result<Feed>> + Send;

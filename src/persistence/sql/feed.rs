@@ -26,7 +26,7 @@ impl RussetFeedPersistenceLayer for SqlDatabase {
 	}
 
 	#[tracing::instrument]
-	async fn get_feeds(&self) -> Vec<Result<Feed>> {
+	async fn get_feeds(&self) -> impl IntoIterator<Item = Result<Feed>> {
 		// TODO: Maybe do paging later. Or figure out how to stream from sqlx.
 		let rows = sqlx::query!("
 				SELECT
@@ -96,7 +96,7 @@ impl RussetFeedPersistenceLayer for SqlDatabase {
 	}
 
 	#[tracing::instrument]
-	async fn get_subscribed_feeds(&self, user_id: &UserId) -> Vec<Result<Feed>> {
+	async fn get_subscribed_feeds(&self, user_id: &UserId) -> impl IntoIterator<Item = Result<Feed>> {
 		let user_id = user_id.to_string();
 		let rows = sqlx::query!("
 				SELECT
@@ -164,7 +164,7 @@ impl RussetFeedPersistenceLayer for SqlDatabase {
 		&self,
 		feed_id: &FeedId,
 		pagination: &Pagination,
-	) -> Vec<Result<FeedCheck>> {
+	) -> impl IntoIterator<Item = Result<FeedCheck>> {
 		let feed_id = feed_id.to_string();
 		let page_size: i64 = match pagination.page_size.try_into() {
 			Ok(i) => i,

@@ -100,7 +100,7 @@ impl RussetEntryPersistenceLayer for SqlDatabase {
 		&self,
 		user_id: &UserId,
 		pagination: &Pagination,
-	) -> Vec<Result<(Entry, Option<UserEntry>)>> {
+	) -> impl IntoIterator<Item = Result<(Entry, Option<UserEntry>)>> {
 		self.get_userentries(user_id, None, None, pagination).await
 	}
 
