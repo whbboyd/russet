@@ -211,10 +211,10 @@ impl SqlDatabase {
 					u.user_id AS "user_entry_user_id",
 					u.read,
 					u.tombstone
-				FROM entries AS e
-				INNER JOIN subscriptions AS s
-					ON e.feed_id = s.feed_id
-				LEFT OUTER JOIN user_entry_settings AS u
+				FROM subscriptions AS s
+				JOIN entries AS e
+					ON s.feed_id = e.feed_id
+				LEFT JOIN user_entry_settings AS u
 					ON s.user_id = u.user_id AND e.id = u.entry_id
 				WHERE s.user_id = ?
 					AND (? OR s.feed_id = ?)
