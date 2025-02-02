@@ -1,8 +1,10 @@
 use axum::extract::{ Form, State };
 use axum_extra::extract::cookie::{ Cookie, CookieJar, Expiration };
 use axum::response::{ Html, Redirect };
+use chrono::Utc;
 use crate::http::AppState;
 use crate::http::error::HttpError;
+use crate::model::Timestamp;
 use crate::persistence::RussetPersistenceLayer;
 use sailfish::TemplateOnce;
 use serde::Deserialize;
@@ -14,6 +16,7 @@ pub struct LoginPageTemplate<'a> {
 	page_title: &'a str,
 	relative_root: &'a str,
 	user: Option<&'a crate::persistence::model::User>,
+	generated_time: &'a str,
 }
 #[derive(Debug, Deserialize)]
 pub struct LoginPageQuery {
@@ -31,6 +34,7 @@ where Persistence: RussetPersistenceLayer {
 			page_title: "Login",
 			relative_root: "",
 			user: None,
+			generated_time: &Timestamp::now().as_iso8601(&Utc),
 		}
 		.render_once()?
 	) )

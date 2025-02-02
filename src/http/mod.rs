@@ -2,8 +2,10 @@ use axum::middleware::map_response;
 use axum::response::Response;
 use axum::Router;
 use axum::routing::{ any, get, post };
+use chrono::{ DateTime, TimeZone, Utc };
 use crate::domain::RussetDomainService;
 use crate::http::session::AuthenticatedUser;
+use crate::model::Timestamp;
 use crate::persistence::RussetPersistenceLayer;
 use serde::Deserialize;
 use std::sync::Arc;
@@ -86,3 +88,11 @@ struct PageQuery {
 	page_size: Option<usize>,
 }
 
+// Utilities
+impl Timestamp {
+	pub fn as_iso8601<T: TimeZone>(&self, tz: &T) -> String {
+		Into::<DateTime<Utc>>::into(self.0)
+			.with_timezone(tz)
+			.to_rfc3339()
+	}
+}

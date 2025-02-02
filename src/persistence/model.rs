@@ -1,3 +1,4 @@
+use chrono_tz::Tz;
 use crate::model::{ EntryId, FeedId, UserId, UserType, Timestamp };
 use reqwest::Url;
 
@@ -34,6 +35,7 @@ pub struct User {
 	pub name: String,
 	pub password_hash: PasswordHash,
 	pub user_type: UserType,
+	pub tz: Tz,
 }
 
 #[derive(Clone)]

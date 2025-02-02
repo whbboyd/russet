@@ -3,6 +3,7 @@ use argon2::password_hash::Error::Password;
 use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::SaltString;
 use base32ct::{ Base32Unpadded, Encoding };
+use chrono_tz::Tz;
 use crate::domain::RussetDomainService;
 use crate::model::{ FeedId, Timestamp, UserId, UserType };
 use crate::persistence::model::{ PasswordHash, Session, SessionToken, User };
@@ -80,7 +81,8 @@ where Persistence: RussetUserPersistenceLayer {
 		&self,
 		user_name: &str,
 		plaintext_password: &str,
-		user_type: UserType
+		user_type: UserType,
+		tz: Tz,
 	) -> Result<()> {
 		if let Some(user) = self.persistence.get_user_by_name(&user_name).await? {
 			return Err(format!("User {} ({}) already exists", user.name, user.id.to_string()).into());
@@ -91,6 +93,7 @@ where Persistence: RussetUserPersistenceLayer {
 			name: user_name.to_string(),
 			password_hash,
 			user_type,
+			tz,
 		};
 		self.persistence.add_user(&user).await?;
 		Ok(())

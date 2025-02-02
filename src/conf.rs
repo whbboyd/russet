@@ -94,6 +94,7 @@ pub enum Command {
 		user_name: String,
 		password: Option<String>,
 		user_type: Option<UserType>,
+		tz: Option<String>,
 	},
 
 	/// Reset a user's password

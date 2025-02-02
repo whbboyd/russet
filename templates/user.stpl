@@ -8,6 +8,8 @@
 					<input type="text" name="id" value="<%= page_user.id.to_string() %>" disabled="true" />
 					<label for="user_type">Type:</label>
 					<input type="text" name="user_type" value="<%= format!("{:?}", page_user.user_type) %>" disabled="true" />
+					<label for="tz">Time zone:</label>
+					<input type="text" name="tz" value="<%= page_user.tz.to_string() %>" disabled="true" />
 				</div>
 				<div class="controls">
 					<button disabled="true">Update</button>

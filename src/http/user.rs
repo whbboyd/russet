@@ -2,7 +2,7 @@ use axum::extract::{ Path, State };
 use axum::response::Html;
 use crate::http::{ AppState, AuthenticatedUser };
 use crate::http::error::HttpError;
-use crate::model::{ UserId, UserType };
+use crate::model::{ Timestamp, UserId, UserType };
 use crate::persistence::RussetPersistenceLayer;
 use crate::persistence::model::User;
 use sailfish::TemplateOnce;
@@ -14,6 +14,7 @@ pub struct UserPage<'a> {
 	user: Option<&'a User>,
 	page_title: &'a str,
 	relative_root: &'a str,
+	generated_time: &'a str,
 }
 #[tracing::instrument]
 pub async fn user_page<Persistence>(
@@ -36,6 +37,7 @@ where Persistence: RussetPersistenceLayer {
 			user: Some(&auth_user.user),
 			page_title: &page_title,
 			relative_root: "../",
+			generated_time: &Timestamp::now().as_iso8601(&auth_user.user.tz),
 		}
 		.render_once()?
 	) )

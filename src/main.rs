@@ -96,7 +96,7 @@ async fn main() -> Result<()> {
 				login_concurrent_limit
 			)
 			.await?,
-		Command::AddUser { user_name, password, user_type } => {
+		Command::AddUser { user_name, password, user_type, tz } => {
 			info!("Adding user {user_name}…");
 			let plaintext_password = match password {
 				Some(password) => password,
@@ -113,7 +113,8 @@ async fn main() -> Result<()> {
 					user_type_str.trim_end().to_string().try_into()?
 				}
 			};
-			domain_service.add_user(&user_name, &plaintext_password, user_type).await?;
+			let tz = tz.unwrap_or("UTC".to_string()).parse()?;
+			domain_service.add_user(&user_name, &plaintext_password, user_type, tz).await?;
 		},
 		Command::SetUserPassword { user_name, password } => {
 			info!("Setting password for user {user_name}…");

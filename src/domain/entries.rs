@@ -3,7 +3,7 @@ use chrono_tz::Tz;
 use crate::domain::model::Entry;
 use crate::domain::RussetDomainService;
 use crate::model::{ EntryId, FeedId, Pagination, Timestamp, UserId };
-use crate::persistence::model::{ Entry as PersistenceEntry, UserEntry };
+use crate::persistence::model::{ Entry as PersistenceEntry, User, UserEntry };
 use crate::persistence::RussetEntryPersistenceLayer;
 use crate::Result;
 use std::time::SystemTime;
@@ -12,14 +12,14 @@ impl <Persistence> RussetDomainService<Persistence>
 where Persistence: RussetEntryPersistenceLayer {
 	pub async fn get_subscribed_entries(
 		&self,
-		user_id: &UserId,
+		user: &User,
 		pagination: &Pagination
 	) -> impl IntoIterator<Item = Result<Entry>> {
 		self.persistence
-			.get_entries_for_user(user_id, pagination)
+			.get_entries_for_user(&user.id, pagination)
 			.await
 			.into_iter()
-			.map(|result| result.map(|(entry, user_entry)| convert_entry(entry, user_entry, /*FIXME*/Tz::UTC)))
+			.map(|result| result.map(|(entry, user_entry)| convert_entry(entry, user_entry, user.tz)))
 			.filter(|entry| entry.as_ref().map_or_else(|_| true, |entry| !entry.tombstone))
 			.collect::<Vec<Result<Entry>>>()
 	}
@@ -38,15 +38,15 @@ where Persistence: RussetEntryPersistenceLayer {
 
 	pub async fn get_feed_entries(
 		&self,
-		user_id: &UserId,
+		user: &User,
 		feed_id: &FeedId,
 		pagination: &Pagination,
 	) -> impl IntoIterator<Item = Result<Entry>> {
 		self.persistence
-			.get_entries_for_user_feed(user_id, feed_id, pagination)
+			.get_entries_for_user_feed(&user.id, feed_id, pagination)
 			.await
 			.into_iter()
-			.map(|result| result.map(|(entry, user_entry)| convert_entry(entry, user_entry, /*FIXME*/Tz::UTC)))
+			.map(|result| result.map(|(entry, user_entry)| convert_entry(entry, user_entry, user.tz)))
 			.filter(|entry| entry.as_ref().map_or_else(|_| true, |entry| !entry.tombstone))
 			.collect::<Vec<Result<Entry>>>()
 	}

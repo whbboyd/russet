@@ -3,7 +3,7 @@ use axum::response::{ Html, Redirect };
 use crate::domain::model::{ Entry, Feed };
 use crate::http::{ AppState, AuthenticatedUser, PageQuery };
 use crate::http::error::HttpError;
-use crate::model::{ FeedId, Pagination };
+use crate::model::{ FeedId, Pagination, Timestamp };
 use crate::persistence::model::User;
 use crate::persistence::RussetPersistenceLayer;
 use sailfish::TemplateOnce;
@@ -17,6 +17,7 @@ struct FeedPageTemplate<'a> {
 	page_num: usize,
 	page_title: &'a str,
 	relative_root: &'a str,
+	generated_time: &'a str,
 }
 #[tracing::instrument]
 pub async fn feed_page<Persistence>(
@@ -31,7 +32,7 @@ where Persistence: RussetPersistenceLayer {
 	let pagination = Pagination { page_num, page_size };
 	let feed = state.domain_service.get_feed(&feed_id).await?;
 	let entries = state.domain_service
-		.get_feed_entries(&user.user.id, &feed_id, &pagination)
+		.get_feed_entries(&user.user, &feed_id, &pagination)
 		.await
 		.into_iter()
 		.filter_map(|entry| entry.ok())
@@ -45,6 +46,7 @@ where Persistence: RussetPersistenceLayer {
 			page_num: pagination.page_num,
 			page_title: &page_title,
 			relative_root: "../",
+			generated_time: &Timestamp::now().as_iso8601(&user.user.tz),
 		}
 		.render_once()?
 	) )

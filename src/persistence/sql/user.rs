@@ -12,7 +12,7 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 		let user_id = user_id.to_string();
 		let row = sqlx::query!("
 				SELECT
-					id, name, password_hash, user_type
+					id, name, password_hash, user_type, tz
 				FROM users
 				WHERE id = ?;",
 				user_id)
@@ -20,11 +20,13 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 			.await?;
 		let id = UserId(Ulid::from_string(&row.id)?);
 		let password_hash = PasswordHash(row.password_hash);
+		let tz = row.tz.parse()?;
 		Ok(User {
 			id,
 			name: row.name,
 			password_hash,
 			user_type: row.user_type.try_into()?,
+			tz,
 		} )
 	}
 
@@ -33,14 +35,16 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 		let user_id = user.id.to_string();
 		let password_hash = &user.password_hash.0;
 		let user_type: String = user.user_type.into();
+		let tz = user.tz.to_string();
 		sqlx::query!("
 				INSERT INTO users (
-					id, name, password_hash, user_type
-				) VALUES ( ?, ?, ?, ? );",
+					id, name, password_hash, user_type, tz
+				) VALUES ( ?, ?, ?, ?, ? );",
 				user_id,
 				user.name,
 				password_hash,
 				user_type,
+				tz,
 			)
 			.execute(&self.pool)
 			.await?;
@@ -91,7 +95,7 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 	async fn get_user_by_name(&self, user_name: &str) -> Result<Option<User>> {
 		let row_result = sqlx::query!("
 				SELECT
-					id, name, password_hash, user_type
+					id, name, password_hash, user_type, tz
 				FROM users
 				WHERE name = ?;",
 				user_name)
@@ -101,11 +105,13 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 			Ok(row) => {
 				let id = UserId(Ulid::from_string(&row.id)?);
 				let password_hash = PasswordHash(row.password_hash);
+				let tz = row.tz.parse()?;
 				Ok(Some(User {
 					id,
 					name: row.name,
 					password_hash,
 					user_type: row.user_type.try_into()?,
+					tz,
 				} ) )
 			},
 			Err(sqlx::Error::RowNotFound) => Ok(None),
@@ -134,7 +140,7 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 	async fn get_user_by_session(&self, session_token: &str) -> Result<Option<(User, Session)>> {
 		let row_result = sqlx::query!("
 				SELECT
-					users.id, users.name, users.password_hash, users.user_type,
+					users.id, users.name, users.password_hash, users.user_type, users.tz,
 					sessions.expiration
 				FROM users
 				JOIN sessions
@@ -147,12 +153,14 @@ impl RussetUserPersistenceLayer for SqlDatabase {
 			Ok(row) => {
 				let user_id = UserId(Ulid::from_string(&row.id)?);
 				let password_hash = PasswordHash(row.password_hash);
+				let tz = row.tz.parse()?;
 				Ok(Some((
 					User {
 						id: user_id.clone(),
 						name: row.name,
 						password_hash,
 						user_type: row.user_type.try_into()?,
+						tz,
 					},
 					Session {
 						token: SessionToken(session_token.to_string()),

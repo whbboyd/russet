@@ -3,6 +3,7 @@ use axum::response::{ Html, Redirect };
 use crate::http::AppState;
 use crate::http::error::HttpError;
 use crate::http::session::AuthenticatedUser;
+use crate::model::Timestamp;
 use crate::persistence::model::User;
 use crate::persistence::RussetPersistenceLayer;
 use reqwest::Url;
@@ -15,6 +16,7 @@ pub struct SubscribePage<'a> {
 	user: Option<&'a User>,
 	page_title: &'a str,
 	relative_root: &'a str,
+	generated_time: &'a str,
 }
 #[tracing::instrument]
 pub async fn subscribe_page<Persistence>(
@@ -27,6 +29,7 @@ where Persistence: RussetPersistenceLayer {
 			user: Some(&user.user),
 			page_title: "Subscribe",
 			relative_root: "",
+			generated_time: &Timestamp::now().as_iso8601(&user.user.tz),
 		}
 		.render_once()?
 	) )

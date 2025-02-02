@@ -21,6 +21,7 @@ struct RootPageTemplate<'a> {
 	page_num: usize,
 	page_title: &'a str,
 	relative_root: &'a str,
+	generated_time: &'a str,
 }
 #[tracing::instrument]
 pub async fn root<Persistence>(
@@ -36,7 +37,7 @@ where Persistence: RussetPersistenceLayer {
 	// succeed, we utterly failed, and we should indicate that.
 	// TODO: Also we should probably indicate partial failure.
 	let entries = state.domain_service
-		.get_subscribed_entries(&user.user.id, &pagination)
+		.get_subscribed_entries(&user.user, &pagination)
 		.await
 		.into_iter()
 		.filter_map(|entry| entry.ok())
@@ -56,6 +57,7 @@ where Persistence: RussetPersistenceLayer {
 			page_num: pagination.page_num,
 			page_title: "Entries",
 			relative_root: "",
+			generated_time: &Timestamp::now().as_iso8601(&user.user.tz),
 		}
 		.render_once()?
 	) )

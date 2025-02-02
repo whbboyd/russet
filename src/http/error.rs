@@ -1,6 +1,8 @@
 use axum::http::StatusCode;
 use axum::response::{ Html, IntoResponse, Redirect, Response };
+use chrono::Utc;
 use crate::Err;
+use crate::model::Timestamp;
 use crate::persistence::model::User;
 use sailfish::RenderError;
 use sailfish::TemplateOnce;
@@ -37,6 +39,7 @@ pub struct ErrorPageTemplate<'a> {
 	user: Option<&'a User>,
 	page_title: &'a str,
 	relative_root: &'a str,
+	generated_time: &'a str,
 }
 impl IntoResponse for HttpError {
 	fn into_response(self) -> Response {
@@ -69,6 +72,7 @@ impl IntoResponse for HttpError {
 					.map(|reason| format!(": {reason}"))
 					.unwrap_or("".to_string())
 			);
+		// TODO: if the user is authenticated, use their TZ
 		let page = Html(
 			ErrorPageTemplate{
 					error_code: &status_str,
@@ -76,6 +80,7 @@ impl IntoResponse for HttpError {
 					user: None,
 					page_title: &status_str,
 					relative_root: "/",
+					generated_time: &Timestamp::now().as_iso8601(&Utc),
 				}
 				.render_once()
 				.unwrap_or_else(|err| {
